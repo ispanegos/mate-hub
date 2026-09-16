@@ -6,7 +6,7 @@
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  top: calc(var(--top-gap) + var(--app-topbar-h) + var(--chat-gap));
+  top: var(--top-gap);
   bottom: calc(var(--bottom-gap) + var(--app-tabbar-h) + var(--chat-gap));
   width: calc(100% - var(--app-bar-margin) * 2);
   max-width: var(--app-bar-max-width);
@@ -135,13 +135,13 @@
   display: flex;
   justify-content: center;
   padding: 0 var(--app-bar-margin);
-  padding-top: calc(var(--top-gap) + var(--app-topbar-h) + var(--chat-gap) + 52px + var(--chat-gap));
+  padding-top: calc(var(--top-gap) + 52px + var(--chat-gap));
 }
 
 .chat-info-panel {
   width: 100%;
   max-width: var(--app-bar-max-width);
-  max-height: calc(100dvh - var(--top-gap) - var(--app-topbar-h) - 52px - var(--bottom-gap) - 60px);
+  max-height: calc(100dvh - var(--top-gap) - 52px - var(--bottom-gap) - 60px);
   overflow-y: auto;
   border-radius: var(--r-panel);
   padding: 18px;

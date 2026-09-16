@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useAuth } from '../context/useAuth'
 import { supabase } from '../lib/supabase'
+import ThemeToggle from '../components/ThemeToggle'
 import './ProfilePage.css'
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
@@ -181,6 +182,11 @@ export default function ProfilePage() {
             {saving ? 'Salvataggio…' : 'Salva modifiche'}
           </button>
         </form>
+
+        <div className="profile-readonly-row">
+          <span className="profile-readonly-label">Tema</span>
+          <ThemeToggle />
+        </div>
 
         <div className="profile-readonly-row">
           <span className="profile-readonly-label">Nickname</span>

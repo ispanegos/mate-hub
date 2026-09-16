@@ -1,6 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
-import ThemeToggle from './ThemeToggle'
 import './AppShell.css'
 
 const NAV_ITEMS = [
@@ -45,18 +44,6 @@ export default function AppShell() {
 
   return (
     <div className="app-shell">
-      <header className="app-topbar glass-strong">
-        <ThemeToggle />
-
-        <NavLink to="/profile" className="app-avatar-btn" aria-label="Profilo" title="Profilo">
-          {profile?.avatar_url ? (
-            <img src={profile.avatar_url} alt="" className="app-avatar-img" />
-          ) : (
-            <span className="app-avatar-fallback">{displayName.slice(0, 1).toUpperCase()}</span>
-          )}
-        </NavLink>
-      </header>
-
       <main className="app-content">
         <Outlet />
       </main>
@@ -73,6 +60,20 @@ export default function AppShell() {
             <span>{item.label}</span>
           </NavLink>
         ))}
+
+        <NavLink
+          to="/profile"
+          className={({ isActive }) => `app-tab app-tab-avatar${isActive ? ' is-active' : ''}`}
+          aria-label="Profilo"
+        >
+          <span className="app-tab-avatar-circle">
+            {profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt="" />
+            ) : (
+              <span className="app-tab-avatar-fallback">{displayName.slice(0, 1).toUpperCase()}</span>
+            )}
+          </span>
+        </NavLink>
       </nav>
     </div>
   )

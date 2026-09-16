@@ -43,7 +43,6 @@
   /* App chrome (shared by AppShell and any nested full-screen page, e.g. chat room) */
   --app-bar-margin: 12px;
   --app-bar-max-width: 640px;
-  --app-topbar-h: 56px;
   --app-tabbar-h: 68px;
 
   font: 16px/1.5 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
