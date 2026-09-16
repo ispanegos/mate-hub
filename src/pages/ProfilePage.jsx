@@ -115,6 +115,9 @@ export default function ProfilePage() {
 
   return (
     <div className="profile-page">
+      <div className="profile-theme-corner">
+        <ThemeToggle />
+      </div>
       <div className="profile-card glass-strong">
         <div className="profile-avatar-section">
           <button
@@ -183,11 +186,6 @@ export default function ProfilePage() {
             {saving ? 'Salvataggio…' : 'Salva modifiche'}
           </button>
         </form>
-
-        <div className="profile-readonly-row">
-          <span className="profile-readonly-label">Tema</span>
-          <ThemeToggle />
-        </div>
 
         <div className="profile-readonly-row">
           <span className="profile-readonly-label">Nickname</span>

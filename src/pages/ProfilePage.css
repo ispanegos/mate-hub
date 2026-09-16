@@ -6,6 +6,13 @@
   padding-top: 4px;
 }
 
+.profile-theme-corner {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  justify-content: flex-start;
+}
+
 .profile-card {
   width: 100%;
   max-width: 420px;
