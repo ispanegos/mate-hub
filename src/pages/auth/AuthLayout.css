@@ -105,6 +105,19 @@
   text-decoration: underline;
 }
 
+.login-forgot-link {
+  align-self: flex-end;
+  margin-top: -8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-text);
+  text-decoration: none;
+}
+
+.login-forgot-link:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 480px) {
   .auth-card {
     padding: 28px 22px;

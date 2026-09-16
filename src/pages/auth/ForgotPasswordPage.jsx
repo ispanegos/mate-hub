@@ -1,14 +1,13 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/useAuth'
 import AuthLayout from './AuthLayout'
 
-export default function LoginPage() {
-  const { signIn } = useAuth()
-  const navigate = useNavigate()
+export default function ForgotPasswordPage() {
+  const { resetPassword } = useAuth()
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async (event) => {
@@ -16,22 +15,40 @@ export default function LoginPage() {
     setError(null)
     setSubmitting(true)
     try {
-      await signIn({ email, password })
-      navigate('/', { replace: true })
+      await resetPassword(email)
+      setSuccess(true)
     } catch (err) {
-      setError(err.message || 'Accesso non riuscito. Riprova.')
+      setError(err.message || 'Invio non riuscito. Riprova.')
     } finally {
       setSubmitting(false)
     }
   }
 
+  if (success) {
+    return (
+      <AuthLayout
+        title="Controlla la tua email"
+        subtitle="Ti abbiamo inviato un link per reimpostare la password."
+        footer={
+          <span>
+            Torna al <Link to="/login">login</Link>
+          </span>
+        }
+      >
+        <div className="alert-success">
+          Apri l'email che ti abbiamo inviato e segui il link per scegliere una nuova password.
+        </div>
+      </AuthLayout>
+    )
+  }
+
   return (
     <AuthLayout
-      title="Bentornato"
-      subtitle="Accedi per continuare le tue conversazioni"
+      title="Password dimenticata"
+      subtitle="Ti mandiamo un link per reimpostarla"
       footer={
         <span>
-          Non hai un account? <Link to="/signup">Registrati</Link>
+          Torna al <Link to="/login">login</Link>
         </span>
       }
     >
@@ -52,26 +69,8 @@ export default function LoginPage() {
           />
         </div>
 
-        <div className="field">
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            className="input"
-            placeholder="••••••••"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
-
-        <Link to="/forgot-password" className="login-forgot-link">
-          Password dimenticata?
-        </Link>
-
         <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
-          {submitting ? 'Accesso in corso…' : 'Accedi'}
+          {submitting ? 'Invio…' : 'Invia link di recupero'}
         </button>
       </form>
     </AuthLayout>

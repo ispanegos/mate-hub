@@ -88,6 +88,18 @@ export function AuthProvider({ children }) {
     if (error) throw error
   }
 
+  const resetPassword = async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+    if (error) throw error
+  }
+
+  const updatePassword = async (password) => {
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) throw error
+  }
+
   const updateProfile = async (patch) => {
     if (!session?.user) throw new Error('Nessuna sessione attiva')
     const { data, error } = await supabase
@@ -111,6 +123,8 @@ export function AuthProvider({ children }) {
     signIn,
     signOut,
     updateProfile,
+    resetPassword,
+    updatePassword,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
