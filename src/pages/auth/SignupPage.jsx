@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/useAuth'
 import AuthLayout from './AuthLayout'
+import PasswordField from '../../components/PasswordField'
 
 const USERNAME_RE = /^[a-z0-9_.]{3,20}$/i
 
@@ -107,33 +108,25 @@ export default function SignupPage() {
           />
         </div>
 
-        <div className="field">
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            className="input"
-            placeholder="Almeno 6 caratteri"
-            autoComplete="new-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
+        <PasswordField
+          id="password"
+          label="Password"
+          placeholder="Almeno 6 caratteri"
+          autoComplete="new-password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
 
-        <div className="field">
-          <label htmlFor="confirm-password">Conferma password</label>
-          <input
-            id="confirm-password"
-            type="password"
-            className="input"
-            placeholder="Ripeti la password"
-            autoComplete="new-password"
-            required
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-          />
-        </div>
+        <PasswordField
+          id="confirm-password"
+          label="Conferma password"
+          placeholder="Ripeti la password"
+          autoComplete="new-password"
+          required
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+        />
 
         <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
           {submitting ? 'Creazione account…' : 'Registrati'}

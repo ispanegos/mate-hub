@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/useAuth'
 import AuthLayout from './AuthLayout'
+import PasswordField from '../../components/PasswordField'
 
 export default function LoginPage() {
   const { signIn } = useAuth()
@@ -52,19 +53,15 @@ export default function LoginPage() {
           />
         </div>
 
-        <div className="field">
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            className="input"
-            placeholder="••••••••"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
+        <PasswordField
+          id="password"
+          label="Password"
+          placeholder="••••••••"
+          autoComplete="current-password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
 
         <Link to="/forgot-password" className="login-forgot-link">
           Password dimenticata?
