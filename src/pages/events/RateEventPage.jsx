@@ -31,6 +31,7 @@ export default function RateEventPage() {
   const [stepIndex, setStepIndex] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
+  const [alreadyVoted, setAlreadyVoted] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -71,7 +72,21 @@ export default function RateEventPage() {
         .order('created_at', { ascending: false })
         .limit(50)
 
+      const { data: ownVotesForEvent } = await supabase
+        .from('event_ratings')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('voter_user_id', user.id)
+        .limit(1)
+
       if (!active) return
+
+      if (ownVotesForEvent && ownVotesForEvent.length > 0) {
+        setEvent(ev)
+        setAlreadyVoted(true)
+        setLoading(false)
+        return
+      }
 
       const picks = {}
       STAT_DEFS.forEach((def) => {
@@ -128,10 +143,8 @@ export default function RateEventPage() {
       })
 
       if (rows.length > 0) {
-        const { error: upErr } = await supabase
-          .from('event_ratings')
-          .upsert(rows, { onConflict: 'event_id,voter_user_id,rated_user_id,stat_key' })
-        if (upErr) throw upErr
+        const { error: insErr } = await supabase.from('event_ratings').insert(rows)
+        if (insErr) throw insErr
       }
       setDone(true)
     } catch (err) {
@@ -156,6 +169,25 @@ export default function RateEventPage() {
           <span className="rate-event-done-emoji">⭐</span>
           <h2>Valutazioni inviate</h2>
           <p className="profile-hint">Grazie! I voti contribuiscono alle STARS di {participants.length} persone.</p>
+          <button
+            type="button"
+            className="btn btn-primary btn-block"
+            onClick={() => navigate(`/chat/${event.conversation_id}`)}
+          >
+            Torna alla chat
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (alreadyVoted) {
+    return (
+      <div className="rate-event-page">
+        <div className="rate-event-done glass-strong">
+          <span className="rate-event-done-emoji">⭐</span>
+          <h2>Hai già valutato questo evento</h2>
+          <p className="profile-hint">I voti sono definitivi e non si possono modificare.</p>
           <button
             type="button"
             className="btn btn-primary btn-block"

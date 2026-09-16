@@ -366,6 +366,34 @@ export default function ChatRoomPage() {
         { event: 'INSERT', schema: 'public', table: 'media', filter: `conversation_id=eq.${id}` },
         (payload) => setMediaByMsg((prev) => ({ ...prev, [payload.new.message_id]: payload.new })),
       )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${id}` },
+        (payload) => {
+          const mid = payload.old.id
+          setMessages((prev) => prev.filter((m) => m.id !== mid))
+          setMediaByMsg((prev) => {
+            if (!prev[mid]) return prev
+            const next = { ...prev }
+            delete next[mid]
+            return next
+          })
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'media', filter: `conversation_id=eq.${id}` },
+        (payload) => {
+          const mediaId = payload.old.id
+          setAllMedia((prev) => prev.filter((m) => m.id !== mediaId))
+          setMediaFolderMap((prev) => {
+            if (!prev[mediaId]) return prev
+            const next = { ...prev }
+            delete next[mediaId]
+            return next
+          })
+        },
+      )
       .subscribe()
     return () => supabase.removeChannel(channel)
   }, [id, isMember])
@@ -794,6 +822,29 @@ export default function ChatRoomPage() {
   const removeFromFolder = async (mediaId, folderId) => {
     await supabase.from('media_folders').delete().eq('media_id', mediaId).eq('folder_id', folderId)
     loadArchive()
+  }
+
+  const deleteMedia = async (media) => {
+    const { error: err } = await supabase.from('messages').delete().eq('id', media.message_id)
+    if (err) {
+      setError(err.message)
+      return
+    }
+    await supabase.storage.from('chat-media').remove([media.url])
+    setAllMedia((prev) => prev.filter((m) => m.id !== media.id))
+    setMediaFolderMap((prev) => {
+      if (!prev[media.id]) return prev
+      const next = { ...prev }
+      delete next[media.id]
+      return next
+    })
+    setMessages((prev) => prev.filter((m) => m.id !== media.message_id))
+    setMediaByMsg((prev) => {
+      if (!prev[media.message_id]) return prev
+      const next = { ...prev }
+      delete next[media.message_id]
+      return next
+    })
   }
 
   const visibleMedia = activeFolderId
@@ -1431,6 +1482,22 @@ export default function ChatRoomPage() {
                 >
                   ➦ Inoltra
                 </button>
+                {messagesById[actionMenuFor]?.sender_id === user.id &&
+                  mediaByMsg[actionMenuFor] && (
+                    <button
+                      type="button"
+                      className="chat-action-item chat-action-item-danger"
+                      onClick={() => {
+                        const media = mediaByMsg[actionMenuFor]
+                        setActionMenuFor(null)
+                        if (media && window.confirm('Eliminare definitivamente questo media?')) {
+                          deleteMedia(media)
+                        }
+                      }}
+                    >
+                      🗑 Elimina
+                    </button>
+                  )}
               </div>
             </div>
           )}
@@ -1592,6 +1659,17 @@ export default function ChatRoomPage() {
                     onClick={() => removeFromFolder(m.id, activeFolderId)}
                   >
                     Rimuovi
+                  </button>
+                )}
+                {m.uploaded_by === user.id && (
+                  <button
+                    type="button"
+                    className="chat-media-delete"
+                    onClick={() => {
+                      if (window.confirm('Eliminare definitivamente questo media?')) deleteMedia(m)
+                    }}
+                  >
+                    🗑 Elimina
                   </button>
                 )}
               </div>

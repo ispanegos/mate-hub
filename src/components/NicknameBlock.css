@@ -1,0 +1,77 @@
+.nickname-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nickname-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.nickname-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 6px 12px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  font-size: 13px;
+}
+
+.nickname-chip-text {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.nickname-like-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  background: none;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--r-pill);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nickname-like-btn.is-active {
+  color: var(--danger);
+}
+
+.nickname-like-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.nickname-remove-btn {
+  border: none;
+  background: none;
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.nickname-propose-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nickname-propose-row {
+  display: flex;
+  gap: 8px;
+}
+
+.nickname-propose-row .input {
+  flex: 1;
+}

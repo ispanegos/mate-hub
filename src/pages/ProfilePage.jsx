@@ -3,6 +3,7 @@ import { useAuth } from '../context/useAuth'
 import { supabase } from '../lib/supabase'
 import ThemeToggle from '../components/ThemeToggle'
 import StarsCard from '../components/StarsCard'
+import NicknameBlock from '../components/NicknameBlock'
 import './ProfilePage.css'
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
@@ -187,12 +188,7 @@ export default function ProfilePage() {
           </button>
         </form>
 
-        <div className="profile-readonly-row">
-          <span className="profile-readonly-label">Nickname</span>
-          <span className="profile-readonly-value profile-readonly-empty">
-            Nessuno ancora — te lo danno i tuoi amici
-          </span>
-        </div>
+        {user && <NicknameBlock targetUserId={user.id} canPropose={false} />}
 
         <button type="button" className="btn btn-secondary btn-block profile-logout" onClick={signOut}>
           <LogoutIcon />

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../context/useAuth'
 import { supabase } from '../lib/supabase'
 import Avatar from '../components/Avatar'
 import StarsCard from '../components/StarsCard'
+import NicknameBlock from '../components/NicknameBlock'
 import './ProfilePage.css'
 
 function displayNameOf(profile) {
@@ -14,7 +16,9 @@ function displayNameOf(profile) {
 export default function UserProfilePage() {
   const { userId } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [profile, setProfile] = useState(null)
+  const [isFriend, setIsFriend] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -34,10 +38,21 @@ export default function UserProfilePage() {
         else setProfile(data)
         setLoading(false)
       })
+
+    supabase
+      .from('friends')
+      .select('status')
+      .or(`and(user_id.eq.${user.id},friend_id.eq.${userId}),and(user_id.eq.${userId},friend_id.eq.${user.id})`)
+      .eq('status', 'accepted')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active) setIsFriend(!!data)
+      })
+
     return () => {
       active = false
     }
-  }, [userId])
+  }, [userId, user.id])
 
   if (loading) return <p className="profile-hint">Caricamento…</p>
   if (error || !profile) return <p className="alert-error">Profilo non trovato</p>
@@ -55,13 +70,7 @@ export default function UserProfilePage() {
           <p className="profile-username">@{profile.username}</p>
         </div>
 
-        <div className="profile-readonly-row">
-          <span className="profile-readonly-label">Nickname</span>
-          <span className="profile-readonly-value profile-readonly-empty">
-            Nessuno ancora — te lo danno i suoi amici
-          </span>
-        </div>
-
+        <NicknameBlock targetUserId={profile.id} canPropose={isFriend} />
       </div>
 
       <StarsCard userId={profile.id} />
