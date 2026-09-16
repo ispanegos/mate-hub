@@ -18,13 +18,22 @@ export default function NewConversationPage() {
   const navigate = useNavigate()
   const { friends, loading } = useFriends()
 
+  const [mode, setMode] = useState(null) // null | 'direct' | 'group'
   const [selected, setSelected] = useState(() => new Set())
   const [name, setName] = useState('')
   const [error, setError] = useState(null)
   const [creating, setCreating] = useState(false)
 
+  const reset = () => {
+    setMode(null)
+    setSelected(new Set())
+    setName('')
+    setError(null)
+  }
+
   const toggle = (id) => {
     setSelected((prev) => {
+      if (mode === 'direct') return new Set([id])
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
@@ -37,15 +46,19 @@ export default function NewConversationPage() {
       setError('Seleziona almeno un amico')
       return
     }
+    if (mode === 'group' && !name.trim()) {
+      setError('Scegli un nome per il gruppo')
+      return
+    }
     setError(null)
     setCreating(true)
     try {
-      const isDirect = selected.size === 1
+      const isDirect = mode === 'direct'
       const { data: conv, error: convErr } = await supabase
         .from('conversations')
         .insert({
           type: isDirect ? 'direct' : 'group',
-          name: isDirect ? null : name.trim() || null,
+          name: isDirect ? null : name.trim(),
           created_by: user.id,
         })
         .select()
@@ -77,6 +90,8 @@ export default function NewConversationPage() {
     }
   }
 
+  const showFriendPicker = mode === 'direct' || (mode === 'group' && name.trim().length > 0)
+
   return (
     <div className="new-conv-page">
       <div className="new-conv-card glass-strong">
@@ -84,9 +99,28 @@ export default function NewConversationPage() {
 
         {error && <div className="alert-error">{error}</div>}
 
-        {selected.size > 1 && (
+        {mode === null && (
+          <div className="new-conv-mode-choice">
+            <button type="button" className="new-conv-mode-btn glass" onClick={() => setMode('direct')}>
+              <span className="new-conv-mode-emoji">💬</span>
+              <span>Chat 1 a 1</span>
+            </button>
+            <button type="button" className="new-conv-mode-btn glass" onClick={() => setMode('group')}>
+              <span className="new-conv-mode-emoji">👥</span>
+              <span>Gruppo</span>
+            </button>
+          </div>
+        )}
+
+        {mode !== null && (
+          <button type="button" className="btn btn-ghost new-conv-back" onClick={reset}>
+            ← Indietro
+          </button>
+        )}
+
+        {mode === 'group' && (
           <div className="field">
-            <label htmlFor="group-name">Nome gruppo (opzionale)</label>
+            <label htmlFor="group-name">Nome del gruppo</label>
             <input
               id="group-name"
               type="text"
@@ -94,18 +128,19 @@ export default function NewConversationPage() {
               placeholder="Es. Weekend in montagna"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              autoFocus
             />
           </div>
         )}
 
-        {!loading && friends.length === 0 && (
+        {showFriendPicker && !loading && friends.length === 0 && (
           <EmptyState
             title="Nessun amico da invitare"
             description="Aggiungi prima qualche amico dalla sezione Amici."
           />
         )}
 
-        {friends.length > 0 && (
+        {showFriendPicker && friends.length > 0 && (
           <div className="new-conv-friends">
             {friends.map(({ row, profile }) => {
               const isSelected = selected.has(profile?.id)
@@ -127,14 +162,16 @@ export default function NewConversationPage() {
           </div>
         )}
 
-        <button
-          type="button"
-          className="btn btn-primary btn-block"
-          disabled={creating || selected.size === 0}
-          onClick={handleCreate}
-        >
-          {creating ? 'Creazione…' : 'Crea e invita'}
-        </button>
+        {showFriendPicker && (
+          <button
+            type="button"
+            className="btn btn-primary btn-block"
+            disabled={creating || selected.size === 0}
+            onClick={handleCreate}
+          >
+            {creating ? 'Creazione…' : 'Crea e invita'}
+          </button>
+        )}
       </div>
     </div>
   )

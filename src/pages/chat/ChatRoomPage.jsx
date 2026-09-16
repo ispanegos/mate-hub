@@ -1210,7 +1210,7 @@ export default function ChatRoomPage() {
                     aria-label="Scegli colore"
                     onClick={() => setColorPickerFor((v) => (v === m.user_id ? null : m.user_id))}
                   />
-                  {m.user_id !== user.id && m.status === 'accepted' && (
+                  {isGroup && m.user_id !== user.id && m.status === 'accepted' && (
                     <button type="button" className="chat-ban-btn" onClick={() => requestBan(m.user_id)}>
                       Richiedi ban
                     </button>
@@ -1241,7 +1241,7 @@ export default function ChatRoomPage() {
               </div>
             ))}
 
-            {banRequests.length > 0 && (
+            {isGroup && banRequests.length > 0 && (
               <div className="chat-ban-list">
                 <p className="chat-ban-list-title">Richieste di ban in corso</p>
                 {banRequests.map((r) => {
