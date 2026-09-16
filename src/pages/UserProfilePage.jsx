@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Avatar from '../components/Avatar'
+import StarsCard from '../components/StarsCard'
 import './ProfilePage.css'
 
 function displayNameOf(profile) {
@@ -61,14 +62,9 @@ export default function UserProfilePage() {
           </span>
         </div>
 
-        <div className="profile-readonly-row">
-          <span className="profile-readonly-label">Ranking</span>
-          <span className="profile-ranking-badge">
-            <span className="profile-ranking-value">–</span>
-            <span className="profile-ranking-max">/10</span>
-          </span>
-        </div>
       </div>
+
+      <StarsCard userId={profile.id} />
     </div>
   )
 }

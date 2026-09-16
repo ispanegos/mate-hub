@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useAuth } from '../context/useAuth'
 import { supabase } from '../lib/supabase'
 import ThemeToggle from '../components/ThemeToggle'
+import StarsCard from '../components/StarsCard'
 import './ProfilePage.css'
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
@@ -195,19 +196,13 @@ export default function ProfilePage() {
           </span>
         </div>
 
-        <div className="profile-readonly-row">
-          <span className="profile-readonly-label">Ranking</span>
-          <span className="profile-ranking-badge">
-            <span className="profile-ranking-value">–</span>
-            <span className="profile-ranking-max">/10</span>
-          </span>
-        </div>
-
         <button type="button" className="btn btn-secondary btn-block profile-logout" onClick={signOut}>
           <LogoutIcon />
           Esci
         </button>
       </div>
+
+      {user && <StarsCard userId={user.id} />}
     </div>
   )
 }

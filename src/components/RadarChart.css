@@ -1,0 +1,42 @@
+.radar-chart {
+  display: block;
+  overflow: visible;
+}
+
+.radar-grid-ring {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+  opacity: 0.6;
+}
+
+.radar-axis-line {
+  stroke: var(--line);
+  stroke-width: 1;
+  opacity: 0.6;
+}
+
+.radar-value-polygon {
+  fill: rgba(255, 175, 0, 0.28);
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.radar-value-dot {
+  fill: var(--accent);
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+
+.radar-value-dot-nv {
+  fill: var(--surface);
+  stroke: var(--ink-soft);
+  stroke-width: 1.5;
+  opacity: 0.7;
+}
+
+.radar-axis-label {
+  font-size: 15px;
+  fill: var(--ink);
+}

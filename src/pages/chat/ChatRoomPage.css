@@ -1160,3 +1160,39 @@
   font-weight: 600;
   color: var(--ink-soft);
 }
+
+.event-participant-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.event-participant-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 6px;
+  border-radius: var(--r-pill);
+  border: 1.5px solid var(--glass-border);
+  background: var(--glass-bg);
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.event-participant-chip.is-selected {
+  border-color: var(--accent);
+  background: rgba(255, 175, 0, 0.16);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.event-participant-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+}

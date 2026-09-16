@@ -12,6 +12,7 @@ import ProfilePage from './pages/ProfilePage'
 import UserProfilePage from './pages/UserProfilePage'
 import NewConversationPage from './pages/NewConversationPage'
 import ChatRoomPage from './pages/chat/ChatRoomPage'
+import RateEventPage from './pages/events/RateEventPage'
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
           <Route path="/u/:userId" element={<UserProfilePage />} />
           <Route path="/new-conversation" element={<NewConversationPage />} />
           <Route path="/chat/:id" element={<ChatRoomPage />} />
+          <Route path="/events/:eventId/rate" element={<RateEventPage />} />
         </Route>
       </Route>
 

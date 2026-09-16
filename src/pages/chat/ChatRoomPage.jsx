@@ -192,6 +192,17 @@ export default function ChatRoomPage() {
   const [expenseView, setExpenseView] = useState('open')
   const [expandedExpenseIds, setExpandedExpenseIds] = useState(() => new Set())
 
+  const [events, setEvents] = useState([])
+  const [eventParticipantsMap, setEventParticipantsMap] = useState({})
+  const [showEventForm, setShowEventForm] = useState(false)
+  const [eventName, setEventName] = useState('')
+  const [eventStart, setEventStart] = useState('')
+  const [eventEnd, setEventEnd] = useState('')
+  const [eventLocation, setEventLocation] = useState('')
+  const [eventParticipantIds, setEventParticipantIds] = useState(() => new Set())
+  const [savingEvent, setSavingEvent] = useState(false)
+  const [expandedEventIds, setExpandedEventIds] = useState(() => new Set())
+
   const [folders, setFolders] = useState([])
   const [mediaFolderMap, setMediaFolderMap] = useState({})
   const [allMedia, setAllMedia] = useState([])
@@ -819,6 +830,96 @@ export default function ChatRoomPage() {
     if (tab === 'split' && isMember) loadExpenses()
   }, [tab, isMember, loadExpenses])
 
+  const loadEvents = useCallback(async () => {
+    const { data: eventRows } = await supabase
+      .from('events')
+      .select('*')
+      .eq('conversation_id', id)
+      .order('created_at', { ascending: false })
+    setEvents(eventRows || [])
+
+    if (eventRows && eventRows.length > 0) {
+      const { data: partRows } = await supabase
+        .from('event_participants')
+        .select('event_id, user_id')
+        .in('event_id', eventRows.map((e) => e.id))
+      const map = {}
+      ;(partRows || []).forEach((p) => {
+        map[p.event_id] = map[p.event_id] || []
+        map[p.event_id].push(p.user_id)
+      })
+      setEventParticipantsMap(map)
+    } else {
+      setEventParticipantsMap({})
+    }
+  }, [id])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch when tab opens
+    if (tab === 'eventi' && isMember) loadEvents()
+  }, [tab, isMember, loadEvents])
+
+  const openEventForm = () => {
+    setEventName('')
+    setEventStart('')
+    setEventEnd('')
+    setEventLocation('')
+    setEventParticipantIds(new Set(members.filter((m) => m.status === 'accepted').map((m) => m.user_id)))
+    setShowEventForm(true)
+  }
+
+  const toggleEventParticipant = (userId) => {
+    setEventParticipantIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(userId)) next.delete(userId)
+      else next.add(userId)
+      return next
+    })
+  }
+
+  const createEvent = async (event) => {
+    event.preventDefault()
+    if (!eventName.trim() || eventParticipantIds.size === 0) return
+    setSavingEvent(true)
+    setError(null)
+    try {
+      const { data: created, error: evErr } = await supabase
+        .from('events')
+        .insert({
+          conversation_id: id,
+          name: eventName.trim(),
+          start_date: eventStart || null,
+          end_date: eventEnd || null,
+          location: eventLocation.trim() || null,
+          created_by: user.id,
+        })
+        .select()
+        .single()
+      if (evErr) throw evErr
+
+      const { error: partErr } = await supabase
+        .from('event_participants')
+        .insert(Array.from(eventParticipantIds).map((uid) => ({ event_id: created.id, user_id: uid })))
+      if (partErr) throw partErr
+
+      setShowEventForm(false)
+      loadEvents()
+    } catch (err) {
+      setError(err.message || 'Creazione evento non riuscita')
+    } finally {
+      setSavingEvent(false)
+    }
+  }
+
+  const toggleExpandedEvent = (eventId) => {
+    setExpandedEventIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(eventId)) next.delete(eventId)
+      else next.add(eventId)
+      return next
+    })
+  }
+
   const openExpenseForm = () => {
     setExpenseDesc('')
     setExpenseAmount('')
@@ -997,6 +1098,13 @@ export default function ChatRoomPage() {
               onClick={() => setTab('split')}
             >
               Split
+            </button>
+            <button
+              type="button"
+              className={`chat-tab${tab === 'eventi' ? ' is-active' : ''}`}
+              onClick={() => setTab('eventi')}
+            >
+              Eventi
             </button>
           </div>
         )}
@@ -1673,6 +1781,154 @@ export default function ChatRoomPage() {
               <p className="chat-empty-hint">
                 {expenseView === 'open' ? 'Nessuna spesa aperta.' : 'Nessuna spesa archiviata.'}
               </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {isMember && tab === 'eventi' && (
+        <div className="chat-split">
+          {!showEventForm && (
+            <button type="button" className="btn btn-primary" onClick={openEventForm}>
+              + Nuovo evento
+            </button>
+          )}
+
+          {showEventForm && (
+            <form className="expense-form glass" onSubmit={createEvent}>
+              <div className="field">
+                <label htmlFor="event-name">Nome</label>
+                <input
+                  id="event-name"
+                  type="text"
+                  className="input"
+                  placeholder="Es. Weekend al mare"
+                  value={eventName}
+                  onChange={(e) => setEventName(e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="event-start">Inizio (opzionale)</label>
+                <input
+                  id="event-start"
+                  type="date"
+                  className="input"
+                  value={eventStart}
+                  onChange={(e) => setEventStart(e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="event-end">Fine (opzionale)</label>
+                <input
+                  id="event-end"
+                  type="date"
+                  className="input"
+                  value={eventEnd}
+                  onChange={(e) => setEventEnd(e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="event-location">Luogo (opzionale)</label>
+                <input
+                  id="event-location"
+                  type="text"
+                  className="input"
+                  placeholder="Es. Rimini"
+                  value={eventLocation}
+                  onChange={(e) => setEventLocation(e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label>Partecipanti</label>
+                <div className="event-participant-picker">
+                  {members
+                    .filter((m) => m.status === 'accepted')
+                    .map((m) => (
+                      <button
+                        key={m.user_id}
+                        type="button"
+                        className={`event-participant-chip${eventParticipantIds.has(m.user_id) ? ' is-selected' : ''}`}
+                        onClick={() => toggleEventParticipant(m.user_id)}
+                      >
+                        <Avatar url={m.profile?.avatar_url} label={displayNameOf(m.profile)} size={22} />
+                        {m.user_id === user.id ? 'Tu' : displayNameOf(m.profile)}
+                      </button>
+                    ))}
+                </div>
+              </div>
+              <div className="expense-form-actions">
+                <button type="button" className="btn btn-ghost" onClick={() => setShowEventForm(false)}>
+                  Annulla
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={savingEvent || !eventName.trim() || eventParticipantIds.size === 0}
+                >
+                  {savingEvent ? 'Creazione…' : 'Crea evento'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          <div className="expense-list">
+            {events.map((ev) => {
+              const participantIds = eventParticipantsMap[ev.id] || []
+              const expanded = expandedEventIds.has(ev.id)
+              const iAmParticipant = participantIds.includes(user.id)
+              return (
+                <div key={ev.id} className="expense-card glass">
+                  <button
+                    type="button"
+                    className="expense-card-head"
+                    onClick={() => toggleExpandedEvent(ev.id)}
+                    aria-expanded={expanded}
+                  >
+                    <span className={`expense-card-chevron${expanded ? ' is-open' : ''}`}>▸</span>
+                    <span className="expense-card-desc">{ev.name}</span>
+                    <span className="expense-card-amount">{participantIds.length}👤</span>
+                  </button>
+                  {expanded && (
+                    <>
+                      <div className="expense-card-meta">
+                        {ev.start_date && (
+                          <span>
+                            {new Date(ev.start_date).toLocaleDateString('it-IT')}
+                            {ev.end_date ? ` → ${new Date(ev.end_date).toLocaleDateString('it-IT')}` : ''}
+                          </span>
+                        )}
+                        {ev.location && <span>📍 {ev.location}</span>}
+                      </div>
+                      <div className="expense-split-list">
+                        {participantIds.map((uid) => (
+                          <div key={uid} className="event-participant-row">
+                            <Avatar
+                              url={membersById[uid]?.profile?.avatar_url}
+                              label={displayNameOf(membersById[uid]?.profile)}
+                              size={26}
+                            />
+                            <span className="expense-split-name">
+                              {uid === user.id ? 'Tu' : displayNameOf(membersById[uid]?.profile)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      {iAmParticipant && (
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-block"
+                          onClick={() => navigate(`/events/${ev.id}/rate`)}
+                        >
+                          ⭐ Valuta partecipanti
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              )
+            })}
+            {events.length === 0 && !showEventForm && (
+              <p className="chat-empty-hint">Nessun evento ancora.</p>
             )}
           </div>
         </div>
