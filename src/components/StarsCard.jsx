@@ -32,7 +32,6 @@ export default function StarsCard({ userId }) {
   return (
     <div className="stars-card glass">
       <div className="stars-overall">
-        <span className="stars-overall-star">⭐</span>
         <span className="stars-overall-value">
           {profile.overall === null ? 'N/V' : profile.overall.toFixed(1)}
         </span>
