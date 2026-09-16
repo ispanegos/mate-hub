@@ -1,0 +1,32 @@
+.empty-state {
+  max-width: 420px;
+  margin: 6vh auto 0;
+  padding: 32px 24px;
+  border-radius: var(--r-panel);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+
+.empty-state-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 175, 0, 0.14);
+  color: var(--accent-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.empty-state h2 {
+  font-size: 18px;
+}
+
+.empty-state p {
+  color: var(--ink-soft);
+  font-size: 14px;
+}

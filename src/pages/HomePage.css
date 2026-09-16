@@ -1,0 +1,108 @@
+.home-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.home-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.home-search-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.home-new-btn {
+  flex-shrink: 0;
+  padding: 10px 16px;
+  min-height: 44px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.home-empty-hint {
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+.home-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.home-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0 4px;
+}
+
+.conversation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.conversation-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r-card);
+}
+
+.conversation-row-btn {
+  width: 100%;
+  border: 1px solid var(--glass-border);
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur) var(--ease);
+  font-family: inherit;
+}
+
+.conversation-row-btn:active {
+  transform: scale(0.98);
+}
+
+.conversation-row-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.conversation-row-name {
+  font-weight: 600;
+  font-size: 14.5px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-row-hint {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.conversation-row-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.conversation-row-actions .btn {
+  padding: 8px 14px;
+  min-height: 38px;
+  font-size: 13px;
+}

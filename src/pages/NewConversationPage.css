@@ -1,0 +1,65 @@
+.new-conv-page {
+  display: flex;
+  justify-content: center;
+}
+
+.new-conv-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 24px;
+  border-radius: var(--r-modal);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.new-conv-title {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.new-conv-friends {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 50svh;
+  overflow-y: auto;
+}
+
+.new-conv-friend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--r-card);
+  border: 1px solid var(--glass-border);
+  cursor: pointer;
+  text-align: left;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+  font-family: inherit;
+}
+
+.new-conv-friend.is-selected {
+  background: rgba(255, 175, 0, 0.14);
+  border-color: rgba(255, 175, 0, 0.4);
+}
+
+.new-conv-friend-name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.new-conv-friend-check {
+  width: 20px;
+  color: var(--accent-text);
+  font-weight: 700;
+  text-align: center;
+  flex-shrink: 0;
+}

@@ -1,0 +1,119 @@
+.app-shell {
+  min-height: 100svh;
+  min-height: 100dvh;
+}
+
+.app-topbar,
+.app-tabbar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - var(--app-bar-margin) * 2);
+  max-width: var(--app-bar-max-width);
+  border-radius: var(--r-panel);
+  z-index: 30;
+}
+
+.app-topbar {
+  top: max(var(--app-bar-margin), env(safe-area-inset-top, 0px));
+  height: var(--app-topbar-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+}
+
+.app-avatar-btn {
+  width: 40px;
+  height: 40px;
+  min-width: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+  border-radius: var(--r-pill);
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--dur) var(--ease);
+}
+
+.app-avatar-btn:hover {
+  transform: translateY(-1px);
+}
+
+.app-avatar-btn:active {
+  transform: scale(0.94);
+}
+
+.app-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.app-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--brand), var(--brand-soft));
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.app-content {
+  min-height: 100svh;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  padding-top: calc(var(--app-topbar-h) + var(--app-bar-margin) * 2 + max(var(--app-bar-margin), env(safe-area-inset-top, 0px)));
+  padding-bottom: calc(var(--app-tabbar-h) + var(--app-bar-margin) * 2 + max(var(--app-bar-margin), env(safe-area-inset-bottom, 0px)));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  max-width: var(--app-bar-max-width);
+  margin: 0 auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-tabbar {
+  bottom: max(var(--app-bar-margin), env(safe-area-inset-bottom, 0px));
+  height: var(--app-tabbar-h);
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  padding: 6px;
+  gap: 4px;
+}
+
+.app-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border-radius: 16px;
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 600;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.app-tab:active {
+  transform: scale(0.96);
+}
+
+.app-tab.is-active {
+  background: rgba(255, 175, 0, 0.16);
+  color: var(--accent-text);
+}
+
+:root[data-theme='dark'] .app-tab.is-active {
+  background: rgba(255, 175, 0, 0.12);
+}
