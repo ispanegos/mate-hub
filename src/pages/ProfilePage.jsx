@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../context/useAuth'
 import { supabase } from '../lib/supabase'
 import ThemeToggle from '../components/ThemeToggle'
 import StarsCard from '../components/StarsCard'
 import NicknameBlock from '../components/NicknameBlock'
+import { isPushSupported, getPushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push'
 import './ProfilePage.css'
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
@@ -48,6 +49,32 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
+  const [pushEnabled, setPushEnabled] = useState(false)
+  const [pushBusy, setPushBusy] = useState(false)
+  const [pushError, setPushError] = useState(null)
+
+  useEffect(() => {
+    if (!isPushSupported()) return
+    getPushSubscription().then((sub) => setPushEnabled(!!sub))
+  }, [])
+
+  const togglePush = async () => {
+    setPushBusy(true)
+    setPushError(null)
+    try {
+      if (pushEnabled) {
+        await unsubscribeFromPush()
+        setPushEnabled(false)
+      } else {
+        await subscribeToPush(user.id)
+        setPushEnabled(true)
+      }
+    } catch (err) {
+      setPushError(err.message || 'Operazione non riuscita')
+    } finally {
+      setPushBusy(false)
+    }
+  }
 
   const displayName = profile?.username || user?.email || 'Tu'
   const dirty = firstName !== (profile?.first_name || '') || lastName !== (profile?.last_name || '')
@@ -189,6 +216,25 @@ export default function ProfilePage() {
         </form>
 
         {user && <NicknameBlock targetUserId={user.id} canPropose={false} />}
+
+        {isPushSupported() && (
+          <div className="field">
+            <label>Notifiche push</label>
+            {pushError && <div className="alert-error">{pushError}</div>}
+            <button
+              type="button"
+              className={`btn btn-block ${pushEnabled ? 'btn-secondary' : 'btn-primary'}`}
+              onClick={togglePush}
+              disabled={pushBusy}
+            >
+              {pushBusy
+                ? 'Attendere…'
+                : pushEnabled
+                  ? 'Disattiva notifiche push'
+                  : 'Attiva notifiche push'}
+            </button>
+          </div>
+        )}
 
         <button type="button" className="btn btn-secondary btn-block profile-logout" onClick={signOut}>
           <LogoutIcon />

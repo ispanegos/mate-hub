@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import Avatar from '../../components/Avatar'
 import RatingSlider from '../../components/RatingSlider'
 import { STAT_DEFS, pickQuestion } from '../../lib/stars'
+import { notifyUsers } from '../../lib/notifications'
 import './RateEventPage.css'
 
 function displayNameOf(profile) {
@@ -145,6 +146,16 @@ export default function RateEventPage() {
       if (rows.length > 0) {
         const { error: insErr } = await supabase.from('event_ratings').insert(rows)
         if (insErr) throw insErr
+
+        const ratedUserIds = Array.from(new Set(rows.map((r) => r.rated_user_id)))
+        notifyUsers({
+          userIds: ratedUserIds,
+          actorId: user.id,
+          type: 'stars_vote',
+          title: 'Nuova valutazione STARS',
+          body: `Hai ricevuto una valutazione per "${event?.name}"`,
+          link: `/profile`,
+        })
       }
       setDone(true)
     } catch (err) {

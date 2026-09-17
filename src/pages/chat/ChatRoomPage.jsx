@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../context/useAuth'
 import { supabase } from '../../lib/supabase'
 import { useConversations, conversationTitle } from '../../hooks/useConversations'
+import { notifyUsers } from '../../lib/notifications'
 import Avatar from '../../components/Avatar'
 import MediaBubble from './MediaBubble'
 import './ChatRoomPage.css'
@@ -209,6 +210,7 @@ export default function ChatRoomPage() {
   const [activeFolderId, setActiveFolderId] = useState(null)
   const [newFolderName, setNewFolderName] = useState('')
   const [viewerMedia, setViewerMedia] = useState(null)
+  const [groupAvatarSignedUrl, setGroupAvatarSignedUrl] = useState(null)
 
   useEffect(() => {
     if (!viewerMedia) return
@@ -221,6 +223,29 @@ export default function ChatRoomPage() {
 
   const isMember = myStatus === 'accepted'
   const isGroup = conversation?.type === 'group'
+
+  useEffect(() => {
+    if (!isGroup || !conversation?.avatar_url) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset quando il gruppo non ha (più) un avatar
+      setGroupAvatarSignedUrl(null)
+      return
+    }
+    const marker = '/chat-media/'
+    const idx = conversation.avatar_url.indexOf(marker)
+    const path = (idx === -1 ? conversation.avatar_url : conversation.avatar_url.slice(idx + marker.length)).split(
+      '?',
+    )[0]
+    let active = true
+    supabase.storage
+      .from('chat-media')
+      .createSignedUrl(path, 3600)
+      .then(({ data }) => {
+        if (active && data) setGroupAvatarSignedUrl(data.signedUrl)
+      })
+    return () => {
+      active = false
+    }
+  }, [isGroup, conversation?.avatar_url])
 
   const otherProfile = useMemo(() => {
     if (conversation?.type !== 'direct') return null
@@ -250,6 +275,11 @@ export default function ChatRoomPage() {
       }),
     )
   }, [members])
+
+  const otherMemberIds = useMemo(
+    () => members.filter((m) => m.status === 'accepted' && m.user_id !== user.id).map((m) => m.user_id),
+    [members, user.id],
+  )
 
   const messagesById = useMemo(() => Object.fromEntries(messages.map((m) => [m.id, m])), [messages])
 
@@ -467,7 +497,19 @@ export default function ChatRoomPage() {
       .from('messages')
       .insert({ conversation_id: id, sender_id: user.id, type: 'text', content: value, reply_to_id: replyId })
     setSending(false)
-    if (err) setError(err.message)
+    if (err) {
+      setError(err.message)
+      return
+    }
+    notifyUsers({
+      userIds: otherMemberIds,
+      actorId: user.id,
+      type: 'message',
+      title: isGroup ? `${displayNameOf(membersById[user.id]?.profile)} in ${conversation?.name}` : displayNameOf(membersById[user.id]?.profile),
+      body: value,
+      link: `/chat/${id}`,
+      conversationId: id,
+    })
   }
 
   const sendMedia = async (blob, type, ext) => {
@@ -496,6 +538,16 @@ export default function ChatRoomPage() {
       // niente append ottimistico qui: la sottoscrizione realtime sui messaggi
       // (sotto) aggiunge questo stesso insert una volta arrivato l'evento,
       // stesso pattern del messaggio di testo
+      const mediaLabel = type === 'image' ? 'una foto' : type === 'video' ? 'un video' : 'un audio'
+      notifyUsers({
+        userIds: otherMemberIds,
+        actorId: user.id,
+        type: 'media',
+        title: isGroup ? `${displayNameOf(membersById[user.id]?.profile)} in ${conversation?.name}` : displayNameOf(membersById[user.id]?.profile),
+        body: `Ha inviato ${mediaLabel}`,
+        link: `/chat/${id}`,
+        conversationId: id,
+      })
     } catch (err) {
       setError(err.message || 'Invio non riuscito')
     } finally {
@@ -686,16 +738,15 @@ export default function ChatRoomPage() {
         .upload(path, file, { upsert: true, contentType: file.type })
       if (upErr) throw upErr
 
-      const { data: publicData } = supabase.storage.from('chat-media').getPublicUrl(path)
-      const avatarUrl = `${publicData.publicUrl}?t=${Date.now()}`
-
       const { error: updErr } = await supabase
         .from('conversations')
-        .update({ avatar_url: avatarUrl })
+        .update({ avatar_url: path })
         .eq('id', id)
       if (updErr) throw updErr
 
-      setConversation((prev) => ({ ...prev, avatar_url: avatarUrl }))
+      const { data: signedData } = await supabase.storage.from('chat-media').createSignedUrl(path, 3600)
+      if (signedData) setGroupAvatarSignedUrl(signedData.signedUrl)
+      setConversation((prev) => ({ ...prev, avatar_url: path }))
     } catch (err) {
       setError(err.message || 'Caricamento immagine non riuscito')
     } finally {
@@ -823,15 +874,28 @@ export default function ChatRoomPage() {
     loadArchive()
   }
 
-  const assignToFolder = async (mediaId, folderId) => {
-    if (!folderId) return
-    await supabase.from('media_folders').insert({ media_id: mediaId, folder_id: folderId })
+  const moveToFolder = async (mediaId, folderId) => {
+    await supabase.from('media_folders').delete().eq('media_id', mediaId)
+    if (folderId) {
+      await supabase.from('media_folders').insert({ media_id: mediaId, folder_id: folderId })
+    }
     loadArchive()
   }
 
-  const removeFromFolder = async (mediaId, folderId) => {
-    await supabase.from('media_folders').delete().eq('media_id', mediaId).eq('folder_id', folderId)
-    loadArchive()
+  const downloadMedia = async (media) => {
+    const { data, error: err } = await supabase.storage
+      .from('chat-media')
+      .createSignedUrl(media.url, 60, { download: true })
+    if (err || !data) {
+      setError(err?.message || 'Download non riuscito')
+      return
+    }
+    const a = document.createElement('a')
+    a.href = data.signedUrl
+    a.download = ''
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
   }
 
   const deleteMedia = async (media) => {
@@ -964,6 +1028,16 @@ export default function ChatRoomPage() {
         .insert(Array.from(eventParticipantIds).map((uid) => ({ event_id: created.id, user_id: uid })))
       if (partErr) throw partErr
 
+      notifyUsers({
+        userIds: Array.from(eventParticipantIds),
+        actorId: user.id,
+        type: 'event_created',
+        title: 'Nuovo evento',
+        body: `${displayNameOf(membersById[user.id]?.profile)} ha creato "${created.name}"`,
+        link: `/chat/${id}`,
+        conversationId: id,
+      })
+
       setShowEventForm(false)
       loadEvents()
     } catch (err) {
@@ -982,13 +1056,24 @@ export default function ChatRoomPage() {
     })
   }
 
-  const deleteEvent = async (eventId) => {
+  const deleteEvent = async (ev) => {
+    const eventId = ev.id
+    const participantIds = eventParticipantsMap[eventId] || []
     await supabase.from('event_participants').delete().eq('event_id', eventId)
     const { error: err } = await supabase.from('events').delete().eq('id', eventId)
     if (err) {
       setError(err.message)
       return
     }
+    notifyUsers({
+      userIds: participantIds,
+      actorId: user.id,
+      type: 'event_deleted',
+      title: 'Evento eliminato',
+      body: `"${ev.name}" è stato eliminato`,
+      link: `/chat/${id}`,
+      conversationId: id,
+    })
     setEvents((prev) => prev.filter((e) => e.id !== eventId))
     setEventParticipantsMap((prev) => {
       if (!prev[eventId]) return prev
@@ -1040,6 +1125,16 @@ export default function ChatRoomPage() {
           participants.map((p, i) => ({ expense_id: expense.id, user_id: p.user_id, share: shares[i] })),
         )
         if (splitErr) throw splitErr
+
+        notifyUsers({
+          userIds: participants.map((p) => p.user_id),
+          actorId: user.id,
+          type: 'expense_new',
+          title: 'Nuova spesa',
+          body: `${displayNameOf(membersById[user.id]?.profile)} ha aggiunto "${expense.description}" (${amount.toFixed(2)}€)`,
+          link: `/chat/${id}`,
+          conversationId: id,
+        })
       }
 
       setShowExpenseForm(false)
@@ -1145,7 +1240,7 @@ export default function ChatRoomPage() {
     return <div className="chat-room-loading alert-error">{error}</div>
   }
 
-  const headerAvatarUrl = isGroup ? conversation?.avatar_url : otherProfile?.avatar_url
+  const headerAvatarUrl = isGroup ? groupAvatarSignedUrl : otherProfile?.avatar_url
 
   return (
     <div className="chat-room">
@@ -1428,7 +1523,21 @@ export default function ChatRoomPage() {
                       {m.type === 'text' && (
                         <span className="chat-bubble-content">{renderWithMentions(m.content)}</span>
                       )}
-                      {m.type !== 'text' && media && <MediaBubble media={media} />}
+                      {m.type !== 'text' && media && (media.type === 'image' || media.type === 'video') && (
+                        <div
+                          className="chat-media-open"
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setViewerMedia(media)
+                          }}
+                          onKeyDown={(e) => e.key === 'Enter' && setViewerMedia(media)}
+                        >
+                          <MediaBubble media={media} />
+                        </div>
+                      )}
+                      {m.type !== 'text' && media && media.type === 'audio' && <MediaBubble media={media} />}
                       {m.type !== 'text' && !media && <span className="media-bubble-loading">…</span>}
                     </div>
                     {reactions.length > 0 && (
@@ -1677,65 +1786,40 @@ export default function ChatRoomPage() {
                 >
                   <MediaBubble media={m} />
                 </div>
-                {!activeFolderId && folders.length > 0 && (
-                  <select
-                    className="chat-media-folder-select"
-                    defaultValue=""
-                    onChange={(e) => assignToFolder(m.id, e.target.value)}
-                  >
-                    <option value="" disabled>
-                      + cartella
-                    </option>
-                    {folders.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                {activeFolderId && (
-                  <button
-                    type="button"
-                    className="chat-media-remove"
-                    onClick={() => removeFromFolder(m.id, activeFolderId)}
-                  >
-                    Rimuovi
+                <div className="chat-media-actions">
+                  <button type="button" className="chat-media-action" onClick={() => downloadMedia(m)}>
+                    ⬇️ Download
                   </button>
-                )}
-                {m.uploaded_by === user.id && (
+                  {folders.length > 0 ? (
+                    <select
+                      className="chat-media-action chat-media-move-select"
+                      value={(mediaFolderMap[m.id] || [])[0] || ''}
+                      onChange={(e) => moveToFolder(m.id, e.target.value || null)}
+                    >
+                      <option value="">📁 Sposta: nessuna</option>
+                      {folders.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          📁 Sposta: {f.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="chat-media-action chat-media-action-disabled">📁 Nessuna cartella</span>
+                  )}
                   <button
                     type="button"
-                    className="chat-media-delete"
+                    className="chat-media-action chat-media-action-danger"
                     onClick={() => {
                       if (window.confirm('Eliminare definitivamente questo media?')) deleteMedia(m)
                     }}
                   >
                     🗑 Elimina
                   </button>
-                )}
+                </div>
               </div>
             ))}
             {visibleMedia.length === 0 && <p className="chat-empty-hint">Nessun media qui.</p>}
           </div>
-
-          {viewerMedia && (
-            <div
-              className="chat-media-viewer-overlay"
-              role="presentation"
-              onClick={() => setViewerMedia(null)}
-            >
-              <button
-                type="button"
-                className="chat-media-viewer-close"
-                onClick={() => setViewerMedia(null)}
-              >
-                ✕
-              </button>
-              <div className="chat-media-viewer-content" onClick={(e) => e.stopPropagation()}>
-                <MediaBubble media={viewerMedia} />
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -2065,7 +2149,7 @@ export default function ChatRoomPage() {
                           type="button"
                           className="event-card-delete"
                           onClick={() => {
-                            if (window.confirm('Eliminare definitivamente questo evento?')) deleteEvent(ev.id)
+                            if (window.confirm('Eliminare definitivamente questo evento?')) deleteEvent(ev)
                           }}
                         >
                           🗑 Elimina evento
@@ -2079,6 +2163,17 @@ export default function ChatRoomPage() {
             {events.length === 0 && !showEventForm && (
               <p className="chat-empty-hint">Nessun evento ancora.</p>
             )}
+          </div>
+        </div>
+      )}
+
+      {viewerMedia && (
+        <div className="chat-media-viewer-overlay" role="presentation" onClick={() => setViewerMedia(null)}>
+          <button type="button" className="chat-media-viewer-close" onClick={() => setViewerMedia(null)}>
+            ✕
+          </button>
+          <div className="chat-media-viewer-content" onClick={(e) => e.stopPropagation()}>
+            <MediaBubble media={viewerMedia} />
           </div>
         </div>
       )}

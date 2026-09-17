@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import NotificationBell from './NotificationBell'
 import './AppShell.css'
 
 const NAV_ITEMS = [
@@ -44,6 +45,7 @@ export default function AppShell() {
 
   return (
     <div className="app-shell">
+      <NotificationBell />
       <main className="app-content">
         <Outlet />
       </main>

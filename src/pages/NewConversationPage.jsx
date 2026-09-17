@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { useFriends } from '../hooks/useFriends'
 import { supabase } from '../lib/supabase'
+import { notifyUsers } from '../lib/notifications'
 import Avatar from '../components/Avatar'
 import EmptyState from '../components/EmptyState'
 import './NewConversationPage.css'
@@ -14,7 +15,7 @@ function displayNameOf(profile) {
 }
 
 export default function NewConversationPage() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const navigate = useNavigate()
   const { friends, loading } = useFriends()
 
@@ -81,6 +82,17 @@ export default function NewConversationPage() {
       }))
       const { error: memErr } = await supabase.from('conversation_members').insert(inviteRows)
       if (memErr) throw memErr
+
+      const myName = profile?.first_name || profile?.username || 'Qualcuno'
+      notifyUsers({
+        userIds: Array.from(selected),
+        actorId: user.id,
+        type: 'conversation_invite',
+        title: isDirect ? 'Nuova chat' : 'Nuovo invito a un gruppo',
+        body: isDirect ? `${myName} ti ha aperto una chat` : `${myName} ti ha invitato in "${name.trim()}"`,
+        link: '/',
+        conversationId: conv.id,
+      })
 
       navigate(`/chat/${conv.id}`, { replace: true })
     } catch (err) {
