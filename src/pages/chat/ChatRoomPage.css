@@ -257,6 +257,52 @@
   margin-bottom: 2px;
 }
 
+.chat-info-members-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chat-invite-friends-btn {
+  border: none;
+  background: none;
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+
+.chat-invite-friends-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0 4px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.chat-invite-friend-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  background: none;
+  padding: 6px 2px;
+  cursor: pointer;
+  font-size: 13.5px;
+  color: var(--ink);
+  text-align: left;
+}
+
+.chat-invite-friend-action {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-text);
+}
+
 .chat-member-block {
   display: flex;
   flex-direction: column;

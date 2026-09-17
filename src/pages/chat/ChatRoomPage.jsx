@@ -3,6 +3,7 @@ import { useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { useAuth } from '../../context/useAuth'
 import { supabase } from '../../lib/supabase'
 import { useConversations, conversationTitle } from '../../hooks/useConversations'
+import { useFriends } from '../../hooks/useFriends'
 import { useGroupAvatarUrl } from '../../hooks/useGroupAvatarUrl'
 import { useOnlineStatus } from '../../hooks/useOnlineStatus'
 import { notifyUsers } from '../../lib/notifications'
@@ -146,6 +147,9 @@ export default function ChatRoomPage() {
   const navigate = useNavigate()
   const isOnline = useOnlineStatus()
   const { setHeaderTitle } = useOutletContext() || {}
+  const { friends } = useFriends()
+  const [showInviteFriends, setShowInviteFriends] = useState(false)
+  const [invitingId, setInvitingId] = useState(null)
 
   const [conversation, setConversation] = useState(null)
   const [myStatus, setMyStatus] = useState(null)
@@ -1056,6 +1060,33 @@ export default function ChatRoomPage() {
     if (!window.confirm('Uscire da questo gruppo?')) return
     await supabase.from('conversation_members').delete().eq('conversation_id', id).eq('user_id', user.id)
     navigate('/', { replace: true })
+  }
+
+  const invitableFriends = friends.filter(
+    ({ profile: p }) => p && !members.some((m) => m.user_id === p.id),
+  )
+
+  const inviteFriend = async (friendId) => {
+    setInvitingId(friendId)
+    const { error: err } = await supabase
+      .from('conversation_members')
+      .insert({ conversation_id: id, user_id: friendId, status: 'invited', invited_by: user.id })
+    if (err) {
+      setError(err.message)
+      setInvitingId(null)
+      return
+    }
+    notifyUsers({
+      userIds: [friendId],
+      actorId: user.id,
+      type: 'conversation_invite',
+      title: 'Nuovo invito a un gruppo',
+      body: `${displayNameOf(membersById[user.id]?.profile)} ti ha invitato in "${conversation?.name}"`,
+      link: '/',
+      conversationId: id,
+    })
+    await loadMembers()
+    setInvitingId(null)
   }
 
   // --- membri / ban ---
@@ -2115,7 +2146,44 @@ export default function ChatRoomPage() {
               </button>
             )}
 
-            <p className="chat-info-members-title">Membri · {members.length}</p>
+            <div className="chat-info-members-head">
+              <p className="chat-info-members-title">Membri · {members.length}</p>
+              {isGroup && (
+                <button
+                  type="button"
+                  className="chat-invite-friends-btn"
+                  onClick={() => setShowInviteFriends((v) => !v)}
+                >
+                  + Invita amici
+                </button>
+              )}
+            </div>
+
+            {showInviteFriends && (
+              <div className="chat-invite-friends-list">
+                {invitableFriends.length === 0 && (
+                  <p className="chat-empty-hint">
+                    Nessun amico da invitare: o sono già dentro, o devi farne altri.
+                  </p>
+                )}
+                {invitableFriends.map(({ profile: p }) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="chat-invite-friend-row"
+                    disabled={invitingId === p.id}
+                    onClick={() => inviteFriend(p.id)}
+                  >
+                    <Avatar url={p.avatar_url} label={displayNameOf(p)} size={30} />
+                    <span>{displayNameOf(p)}</span>
+                    <span className="chat-invite-friend-action">
+                      {invitingId === p.id ? '…' : 'Invita'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
             {members.map((m) => (
               <div key={m.user_id} className="chat-member-block">
                 <div className="chat-member-row">
