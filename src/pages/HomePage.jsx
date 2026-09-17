@@ -134,6 +134,18 @@ export default function HomePage() {
   return (
     <div className="home-page">
       <div className="home-header">
+        <div className="home-filter-chips">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              className={`home-filter-chip${filter === f.key ? ' is-active' : ''}`}
+              onClick={() => setFilter(f.key)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
         <input
           type="text"
           className="input home-search-input"
@@ -141,22 +153,9 @@ export default function HomePage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <Link to="/new-conversation" className="btn btn-primary home-new-btn">
-          Nuovo gruppo
+        <Link to="/new-conversation" className="home-new-btn" aria-label="Nuovo gruppo">
+          +
         </Link>
-      </div>
-
-      <div className="home-filter-chips">
-        {FILTERS.map((f) => (
-          <button
-            key={f.key}
-            type="button"
-            className={`home-filter-chip${filter === f.key ? ' is-active' : ''}`}
-            onClick={() => setFilter(f.key)}
-          >
-            {f.label}
-          </button>
-        ))}
       </div>
 
       {filter !== 'friends' && (

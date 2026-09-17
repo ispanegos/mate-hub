@@ -8,26 +8,36 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .home-search-input {
   flex: 1;
-  min-width: 0;
+  min-width: 90px;
 }
 
 .home-new-btn {
   flex-shrink: 0;
-  padding: 10px 16px;
+  width: 40px;
+  height: 40px;
+  min-width: 44px;
   min-height: 44px;
-  font-size: 13px;
-  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-control);
+  background: var(--accent);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
 }
 
 .home-filter-chips {
   display: flex;
   gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 2px;
+  flex-shrink: 0;
 }
 
 .home-filter-chip {
