@@ -20,12 +20,39 @@
   border-radius: 0;
 }
 
+.app-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.app-header-back {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  min-width: 44px;
+  min-height: 44px;
+  margin-left: -10px;
+  border-radius: 50%;
+  border: none;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .app-header-title {
   font-size: 16px;
   font-weight: 800;
   color: var(--ink);
   text-decoration: none;
   letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-header-actions {
