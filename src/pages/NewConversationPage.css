@@ -18,39 +18,6 @@
   font-weight: 700;
 }
 
-.new-conv-mode-choice {
-  display: flex;
-  gap: 12px;
-}
-
-.new-conv-mode-btn {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 22px 12px;
-  border-radius: var(--r-card);
-  border: 1px solid var(--glass-border);
-  cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  font: inherit;
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--ink);
-}
-
-.new-conv-mode-emoji {
-  font-size: 28px;
-}
-
-.new-conv-back {
-  align-self: flex-start;
-  padding-left: 4px;
-  padding-right: 4px;
-}
-
 .new-conv-friends {
   display: flex;
   flex-direction: column;
