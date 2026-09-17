@@ -18,7 +18,6 @@ function displayNameOf(profile) {
 }
 
 const FILTERS = [
-  { key: 'all', label: 'Tutti' },
   { key: 'group', label: 'Gruppi' },
   { key: 'friends', label: 'Amici' },
 ]
@@ -30,7 +29,7 @@ export default function HomePage() {
   const { friends } = useFriends()
   const [busyId, setBusyId] = useState(null)
   const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState('all')
+  const [filter, setFilter] = useState('group')
   const [startingWith, setStartingWith] = useState(null)
 
   const active = items.filter((r) => r.status === 'accepted')
@@ -116,7 +115,7 @@ export default function HomePage() {
   }
 
   const nothingToShow =
-    !loading && active.length === 0 && invites.length === 0 && friends.length === 0 && filter === 'all' && !q
+    !loading && active.length === 0 && invites.length === 0 && friends.length === 0 && filter === 'group' && !q
 
   if (nothingToShow) {
     return (
