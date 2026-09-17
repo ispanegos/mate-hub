@@ -155,7 +155,12 @@ export default function HomePage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <Link to="/new-conversation" className="home-new-btn" aria-label="Nuovo gruppo">
+        <Link
+          to={filter === 'friends' ? '/friends' : '/new-conversation'}
+          className="home-new-btn"
+          aria-label={filter === 'friends' ? 'Aggiungi amico' : 'Nuovo gruppo'}
+          title={filter === 'friends' ? 'Aggiungi amico' : 'Nuovo gruppo'}
+        >
           +
         </Link>
       </div>
