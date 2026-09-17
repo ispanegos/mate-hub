@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { useConversations, conversationTitle } from '../../hooks/useConversations'
 import { useGroupAvatarUrl } from '../../hooks/useGroupAvatarUrl'
 import { notifyUsers } from '../../lib/notifications'
+import { compressImage } from '../../lib/imageCompress'
 import Avatar from '../../components/Avatar'
 import MediaBubble from './MediaBubble'
 import './ChatRoomPage.css'
@@ -166,6 +167,10 @@ export default function ChatRoomPage() {
   const [sending, setSending] = useState(false)
   const [recording, setRecording] = useState(false)
   const [mentionQuery, setMentionQuery] = useState(null)
+  const [typingUsers, setTypingUsers] = useState({})
+  const typingChannelRef = useRef(null)
+  const typingTimeoutsRef = useRef({})
+  const lastTypingSentRef = useRef(0)
   const mediaRecorderRef = useRef(null)
   const chunksRef = useRef([])
   const fileInputRef = useRef(null)
@@ -181,6 +186,9 @@ export default function ChatRoomPage() {
   const customEmojiInputRef = useRef(null)
   const [replyTo, setReplyTo] = useState(null)
   const [editingMessage, setEditingMessage] = useState(null)
+  const [trashedMessages, setTrashedMessages] = useState([])
+  const [chatSearchOpen, setChatSearchOpen] = useState(false)
+  const [chatSearchQuery, setChatSearchQuery] = useState('')
   const [forwardSheetFor, setForwardSheetFor] = useState(null)
   const [forwarding, setForwarding] = useState(false)
   const [forwardDone, setForwardDone] = useState(false)
@@ -270,6 +278,11 @@ export default function ChatRoomPage() {
 
   const messagesById = useMemo(() => Object.fromEntries(messages.map((m) => [m.id, m])), [messages])
 
+  const chatSearchQueryTrimmed = chatSearchQuery.trim().toLowerCase()
+  const visibleChatMessages = chatSearchQueryTrimmed
+    ? messages.filter((m) => m.type === 'text' && m.content?.toLowerCase().includes(chatSearchQueryTrimmed))
+    : messages
+
   useEffect(() => {
     messageIdsRef.current = new Set(messages.map((m) => m.id))
   }, [messages])
@@ -313,6 +326,7 @@ export default function ChatRoomPage() {
           .from('messages')
           .select('*')
           .eq('conversation_id', id)
+          .is('deleted_at', null)
           .order('created_at', { ascending: true })
         if (msgErr) throw msgErr
         setMessages(msgs || [])
@@ -407,6 +421,43 @@ export default function ChatRoomPage() {
     return () => supabase.removeChannel(channel)
   }, [id, navigate])
 
+  // "sta scrivendo…" via broadcast realtime (nessuna scrittura su DB)
+  useEffect(() => {
+    const channel = supabase.channel(`chat-typing-${id}`, { config: { broadcast: { self: false } } })
+    channel
+      .on('broadcast', { event: 'typing' }, ({ payload }) => {
+        if (!payload?.userId || payload.userId === user.id) return
+        setTypingUsers((prev) => ({ ...prev, [payload.userId]: payload.name }))
+        clearTimeout(typingTimeoutsRef.current[payload.userId])
+        typingTimeoutsRef.current[payload.userId] = setTimeout(() => {
+          setTypingUsers((prev) => {
+            if (!(payload.userId in prev)) return prev
+            const next = { ...prev }
+            delete next[payload.userId]
+            return next
+          })
+        }, 4000)
+      })
+      .subscribe()
+    typingChannelRef.current = channel
+    return () => {
+      Object.values(typingTimeoutsRef.current).forEach(clearTimeout)
+      typingTimeoutsRef.current = {}
+      supabase.removeChannel(channel)
+    }
+  }, [id, user.id])
+
+  const broadcastTyping = () => {
+    const now = Date.now()
+    if (now - lastTypingSentRef.current < 2500) return
+    lastTypingSentRef.current = now
+    typingChannelRef.current?.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { userId: user.id, name: displayNameOf(membersById[user.id]?.profile) },
+    })
+  }
+
   // realtime messages + media
   useEffect(() => {
     if (!isMember) return
@@ -421,7 +472,18 @@ export default function ChatRoomPage() {
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${id}` },
-        (payload) => setMessages((prev) => prev.map((m) => (m.id === payload.new.id ? payload.new : m))),
+        (payload) => {
+          if (payload.new.deleted_at) {
+            setMessages((prev) => prev.filter((m) => m.id !== payload.new.id))
+            return
+          }
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === payload.new.id)) {
+              return prev.map((m) => (m.id === payload.new.id ? payload.new : m))
+            }
+            return [...prev, payload.new].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+          })
+        },
       )
       .on(
         'postgres_changes',
@@ -536,15 +598,34 @@ export default function ChatRoomPage() {
       setError(err.message)
       return
     }
-    notifyUsers({
-      userIds: otherMemberIds,
-      actorId: user.id,
-      type: 'message',
-      title: isGroup ? `${displayNameOf(membersById[user.id]?.profile)} in ${conversation?.name}` : displayNameOf(membersById[user.id]?.profile),
-      body: value,
-      link: `/chat/${id}`,
-      conversationId: id,
-    })
+
+    const senderName = displayNameOf(membersById[user.id]?.profile)
+    const mentionedIds = extractMentionedUserIds(value)
+    const mentionRecipients = otherMemberIds.filter((uid) => mentionedIds.includes(uid))
+    const regularRecipients = otherMemberIds.filter((uid) => !mentionedIds.includes(uid))
+
+    if (mentionRecipients.length > 0) {
+      notifyUsers({
+        userIds: mentionRecipients,
+        actorId: user.id,
+        type: 'mention',
+        title: `${senderName} ti ha menzionato`,
+        body: value,
+        link: `/chat/${id}`,
+        conversationId: id,
+      })
+    }
+    if (regularRecipients.length > 0) {
+      notifyUsers({
+        userIds: regularRecipients,
+        actorId: user.id,
+        type: 'message',
+        title: isGroup ? `${senderName} in ${conversation?.name}` : senderName,
+        body: value,
+        link: `/chat/${id}`,
+        conversationId: id,
+      })
+    }
   }
 
   const sendMedia = async (blob, type, ext) => {
@@ -595,8 +676,9 @@ export default function ChatRoomPage() {
     event.target.value = ''
     if (!file) return
     const type = file.type.startsWith('video/') ? 'video' : 'image'
-    const ext = file.name.split('.').pop() || (type === 'video' ? 'mp4' : 'jpg')
-    await sendMedia(file, type, ext)
+    const uploadFile = type === 'image' ? await compressImage(file) : file
+    const ext = uploadFile.name.split('.').pop() || (type === 'video' ? 'mp4' : 'jpg')
+    await sendMedia(uploadFile, type, ext)
   }
 
   const toggleRecording = async () => {
@@ -727,6 +809,7 @@ export default function ChatRoomPage() {
     const value = event.target.value
     const cursor = event.target.selectionStart
     setText(value)
+    if (value.trim()) broadcastTyping()
     const before = value.slice(0, cursor)
     const match = before.match(/(?:^|\s)@([a-zA-Z0-9_.]*)$/)
     setMentionQuery(match ? match[1] : null)
@@ -899,11 +982,12 @@ export default function ChatRoomPage() {
 
     setUploadingAvatar(true)
     try {
-      const ext = file.name.split('.').pop() || 'jpg'
+      const compressed = await compressImage(file)
+      const ext = compressed.name.split('.').pop() || 'jpg'
       const path = `${id}/_proposal_avatar_${crypto.randomUUID()}.${ext}`
       const { error: upErr } = await supabase.storage
         .from('chat-media')
-        .upload(path, file, { contentType: file.type })
+        .upload(path, compressed, { contentType: compressed.type })
       if (upErr) throw upErr
 
       const open = openProposalOfType('avatar')
@@ -1131,12 +1215,41 @@ export default function ChatRoomPage() {
   }
 
   const deleteTextMessage = async (messageId) => {
-    const { error: err } = await supabase.from('messages').delete().eq('id', messageId)
+    const { error: err } = await supabase
+      .from('messages')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', messageId)
     if (err) {
       setError(err.message)
       return
     }
     setMessages((prev) => prev.filter((m) => m.id !== messageId))
+  }
+
+  const loadTrash = useCallback(async () => {
+    const { data } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', id)
+      .eq('sender_id', user.id)
+      .eq('type', 'text')
+      .not('deleted_at', 'is', null)
+      .order('deleted_at', { ascending: false })
+    setTrashedMessages(data || [])
+  }, [id, user.id])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch when panel opens
+    if (showInfo && isMember) loadTrash()
+  }, [showInfo, isMember, loadTrash])
+
+  const restoreTextMessage = async (messageId) => {
+    const { error: err } = await supabase.from('messages').update({ deleted_at: null }).eq('id', messageId)
+    if (err) {
+      setError(err.message)
+      return
+    }
+    setTrashedMessages((prev) => prev.filter((m) => m.id !== messageId))
   }
 
   const visibleMedia = activeFolderId
@@ -1430,6 +1543,16 @@ export default function ChatRoomPage() {
 
   const memberUsernames = new Set(members.map((m) => m.profile?.username).filter(Boolean))
 
+  function extractMentionedUserIds(content) {
+    if (!content) return []
+    const usernames = Array.from(content.matchAll(/@([a-zA-Z0-9_.]+)/g)).map((m) => m[1])
+    const ids = new Set()
+    members.forEach((m) => {
+      if (m.profile?.username && usernames.includes(m.profile.username)) ids.add(m.user_id)
+    })
+    return Array.from(ids)
+  }
+
   const mentionMatches = mentionQuery === null
     ? []
     : members
@@ -1471,6 +1594,20 @@ export default function ChatRoomPage() {
           <Avatar url={headerAvatarUrl} label={title} size={30} />
           <span className="chat-room-title">{title}</span>
         </button>
+
+        {isMember && tab === 'chat' && (
+          <button
+            type="button"
+            className="chat-icon-btn"
+            aria-label="Cerca nella chat"
+            onClick={() => {
+              setChatSearchOpen((v) => !v)
+              setChatSearchQuery('')
+            }}
+          >
+            🔍
+          </button>
+        )}
 
         {isMember && (
           <div className="chat-header-tabs">
@@ -1640,6 +1777,20 @@ export default function ChatRoomPage() {
               {membersById[user.id]?.muted ? '🔔 Riattiva notifiche' : '🔕 Silenzia notifiche'}
             </button>
 
+            {trashedMessages.length > 0 && (
+              <div className="chat-trash-section">
+                <p className="chat-info-members-title">🗑 Cestino (si svuota a fine giornata)</p>
+                {trashedMessages.map((m) => (
+                  <div key={m.id} className="chat-trash-row">
+                    <span className="chat-trash-content">{m.content}</span>
+                    <button type="button" className="chat-vote-btn" onClick={() => restoreTextMessage(m.id)}>
+                      Ripristina
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {isGroup && (
               <button type="button" className="btn btn-ghost btn-block chat-leave-btn" onClick={leaveGroup}>
                 Esci dal gruppo
@@ -1742,8 +1893,24 @@ export default function ChatRoomPage() {
 
       {isMember && tab === 'chat' && (
         <>
+          {chatSearchOpen && (
+            <div className="chat-search-bar glass">
+              <input
+                type="text"
+                className="input"
+                placeholder="Cerca nei messaggi…"
+                value={chatSearchQuery}
+                onChange={(e) => setChatSearchQuery(e.target.value)}
+                autoFocus
+              />
+              {chatSearchQuery.trim() && (
+                <span className="chat-search-count">{visibleChatMessages.length}</span>
+              )}
+            </div>
+          )}
+
           <div className="chat-messages" ref={scrollRef}>
-            {messages.map((m) => {
+            {visibleChatMessages.map((m) => {
               const mine = m.sender_id === user.id
               const media = mediaByMsg[m.id]
               const member = membersById[m.sender_id]
@@ -1837,8 +2004,11 @@ export default function ChatRoomPage() {
                 </div>
               )
             })}
-            {messages.length === 0 && (
+            {messages.length === 0 && !chatSearchQueryTrimmed && (
               <p className="chat-empty-hint">Nessun messaggio ancora. Scrivi il primo!</p>
+            )}
+            {chatSearchQueryTrimmed && visibleChatMessages.length === 0 && (
+              <p className="chat-empty-hint">Nessun risultato per "{chatSearchQuery.trim()}"</p>
             )}
           </div>
 
@@ -1956,6 +2126,13 @@ export default function ChatRoomPage() {
                   ))}
               </div>
             </div>
+          )}
+
+          {Object.keys(typingUsers).length > 0 && (
+            <p className="chat-typing-hint">
+              {Object.values(typingUsers).join(', ')}{' '}
+              {Object.keys(typingUsers).length === 1 ? 'sta scrivendo…' : 'stanno scrivendo…'}
+            </p>
           )}
 
           {editingMessage && (

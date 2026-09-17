@@ -14,6 +14,7 @@ const TYPE_ICON = {
   stars_vote: '⭐',
   conversation_invite: '✉️',
   group_proposal: '🗳️',
+  mention: '📣',
 }
 
 function timeAgo(dateString) {

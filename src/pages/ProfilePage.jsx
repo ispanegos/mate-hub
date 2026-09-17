@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import StarsCard from '../components/StarsCard'
 import NicknameBlock from '../components/NicknameBlock'
 import { isPushSupported, getPushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push'
+import { compressImage } from '../lib/imageCompress'
 import './ProfilePage.css'
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
@@ -101,12 +102,13 @@ export default function ProfilePage() {
     setUploading(true)
 
     try {
-      const ext = file.name.split('.').pop() || 'jpg'
+      const compressed = await compressImage(file)
+      const ext = compressed.name.split('.').pop() || 'jpg'
       const path = `${user.id}/avatar.${ext}`
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(path, file, { upsert: true, contentType: file.type })
+        .upload(path, compressed, { upsert: true, contentType: compressed.type })
       if (uploadError) throw uploadError
 
       const { data: publicData } = supabase.storage.from('avatars').getPublicUrl(path)

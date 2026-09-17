@@ -39,18 +39,31 @@ export default function FriendsPage() {
     }
     setSearching(true)
     setSearchError(null)
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .ilike('username', `%${q}%`)
-      .neq('id', user.id)
-      .limit(15)
-    setSearching(false)
-    if (error) {
-      setSearchError(error.message)
-      return
+    try {
+      const safeQuery = q.replace(/[%,()]/g, ' ').trim()
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .or(`username.ilike.%${safeQuery}%,first_name.ilike.%${safeQuery}%,last_name.ilike.%${safeQuery}%`)
+        .neq('id', user.id)
+        .limit(15)
+      if (error) throw error
+
+      let combined = data || []
+
+      if (q.includes('@')) {
+        const { data: byEmail } = await supabase.rpc('find_profile_by_email', { p_email: q })
+        if (byEmail && byEmail.id !== user.id && !combined.some((p) => p.id === byEmail.id)) {
+          combined = [...combined, byEmail]
+        }
+      }
+
+      setResults(combined.filter((p) => !knownIds.has(p.id)))
+    } catch (err) {
+      setSearchError(err.message)
+    } finally {
+      setSearching(false)
     }
-    setResults(data.filter((p) => !knownIds.has(p.id)))
   }
 
   const handleSend = async (targetId) => {
@@ -73,7 +86,7 @@ export default function FriendsPage() {
         <input
           type="text"
           className="input"
-          placeholder="Cerca per username…"
+          placeholder="Cerca per nome, username o email…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
