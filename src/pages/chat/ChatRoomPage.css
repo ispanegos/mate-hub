@@ -594,6 +594,12 @@
   display: block;
 }
 
+.chat-bubble-edited {
+  font-size: 11px;
+  color: var(--ink-soft);
+  opacity: 0.8;
+}
+
 .media-bubble-loading {
   font-size: 12px;
   color: var(--ink-soft);

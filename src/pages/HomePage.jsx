@@ -6,6 +6,7 @@ import { notifyUsers } from '../lib/notifications'
 import { useConversations, conversationTitle } from '../hooks/useConversations'
 import { useFriends } from '../hooks/useFriends'
 import { useOverallStars } from '../hooks/useOverallStars'
+import { useUnreadCounts } from '../hooks/useUnreadCounts'
 import ConversationAvatar from '../components/ConversationAvatar'
 import Avatar from '../components/Avatar'
 import EmptyState from '../components/EmptyState'
@@ -27,6 +28,7 @@ export default function HomePage() {
   const { user, profile } = useAuth()
   const { items, loading, refresh } = useConversations()
   const { friends } = useFriends()
+  const { counts: unreadCounts } = useUnreadCounts()
   const [busyId, setBusyId] = useState(null)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('friends')
@@ -206,29 +208,33 @@ export default function HomePage() {
             <section className="home-section">
               <h3 className="home-section-title">Chat</h3>
               <div className="conversation-list">
-                {filteredActive.map((r) => (
-                  <button
-                    key={r.conversation_id}
-                    type="button"
-                    className="conversation-row conversation-row-btn glass"
-                    onClick={() => navigate(`/chat/${r.conversation_id}`)}
-                  >
-                    <ConversationAvatar
-                      conversation={r.conversation}
-                      otherProfile={r.otherProfile}
-                      label={conversationTitle(r.conversation, r.otherProfile)}
-                      size={44}
-                    />
-                    <div className="conversation-row-info">
-                      <span className="conversation-row-name">
-                        {conversationTitle(r.conversation, r.otherProfile)}
-                      </span>
-                      <span className="conversation-row-hint">
-                        {r.conversation?.type === 'direct' ? 'Chat 1 a 1' : 'Gruppo'}
-                      </span>
-                    </div>
-                  </button>
-                ))}
+                {filteredActive.map((r) => {
+                  const unread = unreadCounts[r.conversation_id] || 0
+                  return (
+                    <button
+                      key={r.conversation_id}
+                      type="button"
+                      className="conversation-row conversation-row-btn glass"
+                      onClick={() => navigate(`/chat/${r.conversation_id}`)}
+                    >
+                      <ConversationAvatar
+                        conversation={r.conversation}
+                        otherProfile={r.otherProfile}
+                        label={conversationTitle(r.conversation, r.otherProfile)}
+                        size={44}
+                      />
+                      <div className="conversation-row-info">
+                        <span className="conversation-row-name">
+                          {conversationTitle(r.conversation, r.otherProfile)}
+                        </span>
+                        <span className="conversation-row-hint">
+                          {r.conversation?.type === 'direct' ? 'Chat 1 a 1' : 'Gruppo'}
+                        </span>
+                      </div>
+                      {unread > 0 && <span className="conversation-row-unread">{unread > 9 ? '9+' : unread}</span>}
+                    </button>
+                  )
+                })}
               </div>
             </section>
           )}
@@ -257,43 +263,52 @@ export default function HomePage() {
 
           {filteredFriends.length > 0 && (
             <div className="conversation-list">
-              {filteredFriends.map(({ row, profile: p }) => (
-                <div key={row.id} className="conversation-row glass">
-                  <Avatar url={p.avatar_url} label={displayNameOf(p)} size={44} />
-                  <div className="conversation-row-info">
-                    <span className="conversation-row-name">
-                      {displayNameOf(p)}
-                      <span className="conversation-row-rank">
-                        ⭐ {overallScores[p.id] != null ? overallScores[p.id].toFixed(1) : 'N/V'}
+              {filteredFriends.map(({ row, profile: p }) => {
+                const friendConvId = directConvByFriendId[p.id]
+                const unread = friendConvId ? unreadCounts[friendConvId] || 0 : 0
+                return (
+                  <div key={row.id} className="conversation-row glass">
+                    <Avatar url={p.avatar_url} label={displayNameOf(p)} size={44} />
+                    <div className="conversation-row-info">
+                      <span className="conversation-row-name">
+                        {displayNameOf(p)}
+                        <span className="conversation-row-rank">
+                          ⭐ {overallScores[p.id] != null ? overallScores[p.id].toFixed(1) : 'N/V'}
+                        </span>
                       </span>
-                    </span>
-                    <span className="conversation-row-hint">
-                      {startingWith === p.id ? 'Apertura chat…' : '@' + p.username}
-                    </span>
+                      <span className="conversation-row-hint">
+                        {startingWith === p.id ? 'Apertura chat…' : '@' + p.username}
+                      </span>
+                    </div>
+                    <div className="conversation-row-actions">
+                      <button
+                        type="button"
+                        className="conversation-row-icon-btn conversation-row-icon-btn-badged"
+                        aria-label="Chat"
+                        title="Chat"
+                        disabled={startingWith === p.id}
+                        onClick={() => openOrStartChat(p.id)}
+                      >
+                        💬
+                        {unread > 0 && (
+                          <span className="conversation-row-unread conversation-row-unread-dot">
+                            {unread > 9 ? '9+' : unread}
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        className="conversation-row-icon-btn"
+                        aria-label="Profilo"
+                        title="Profilo"
+                        onClick={() => navigate(`/u/${p.id}`)}
+                      >
+                        👤
+                      </button>
+                    </div>
                   </div>
-                  <div className="conversation-row-actions">
-                    <button
-                      type="button"
-                      className="conversation-row-icon-btn"
-                      aria-label="Chat"
-                      title="Chat"
-                      disabled={startingWith === p.id}
-                      onClick={() => openOrStartChat(p.id)}
-                    >
-                      💬
-                    </button>
-                    <button
-                      type="button"
-                      className="conversation-row-icon-btn"
-                      aria-label="Profilo"
-                      title="Profilo"
-                      onClick={() => navigate(`/u/${p.id}`)}
-                    >
-                      👤
-                    </button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </section>

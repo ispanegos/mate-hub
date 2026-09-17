@@ -180,6 +180,7 @@ export default function ChatRoomPage() {
   const [customEmojiValue, setCustomEmojiValue] = useState('')
   const customEmojiInputRef = useRef(null)
   const [replyTo, setReplyTo] = useState(null)
+  const [editingMessage, setEditingMessage] = useState(null)
   const [forwardSheetFor, setForwardSheetFor] = useState(null)
   const [forwarding, setForwarding] = useState(false)
   const [forwardDone, setForwardDone] = useState(false)
@@ -344,6 +345,31 @@ export default function ChatRoomPage() {
     loadCore()
   }, [loadCore])
 
+  // segna come letta la chat quando la si apre o arrivano nuovi messaggi mentre e' aperta
+  useEffect(() => {
+    if (!isMember || tab !== 'chat') return
+    supabase
+      .from('conversation_members')
+      .update({ last_read_at: new Date().toISOString() })
+      .eq('conversation_id', id)
+      .eq('user_id', user.id)
+      .then(() => {})
+  }, [id, user.id, isMember, tab, messages.length])
+
+  const toggleMute = async () => {
+    const nextMuted = !membersById[user.id]?.muted
+    const { error: err } = await supabase
+      .from('conversation_members')
+      .update({ muted: nextMuted })
+      .eq('conversation_id', id)
+      .eq('user_id', user.id)
+    if (err) {
+      setError(err.message)
+      return
+    }
+    setMembers((prev) => prev.map((m) => (m.user_id === user.id ? { ...m, muted: nextMuted } : m)))
+  }
+
   // realtime: membri (stato inviti/ban) sempre attivo per chi ha gia' aperto la stanza
   useEffect(() => {
     const channel = supabase
@@ -391,6 +417,11 @@ export default function ChatRoomPage() {
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${id}` },
         (payload) =>
           setMessages((prev) => (prev.some((m) => m.id === payload.new.id) ? prev : [...prev, payload.new])),
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${id}` },
+        (payload) => setMessages((prev) => prev.map((m) => (m.id === payload.new.id ? payload.new : m))),
       )
       .on(
         'postgres_changes',
@@ -481,6 +512,19 @@ export default function ChatRoomPage() {
     const value = text.trim()
     if (!value) return
     setSending(true)
+
+    if (editingMessage) {
+      const { error: err } = await supabase
+        .from('messages')
+        .update({ content: value, edited_at: new Date().toISOString() })
+        .eq('id', editingMessage.id)
+      setSending(false)
+      setText('')
+      setEditingMessage(null)
+      if (err) setError(err.message)
+      return
+    }
+
     setText('')
     const replyId = replyTo?.id ?? null
     setReplyTo(null)
@@ -618,6 +662,21 @@ export default function ChatRoomPage() {
     setReplyTo(messagesById[messageId] || null)
     setActionMenuFor(null)
     composerInputRef.current?.focus()
+  }
+
+  const startEdit = (messageId) => {
+    const m = messagesById[messageId]
+    if (!m) return
+    setEditingMessage(m)
+    setReplyTo(null)
+    setText(m.content || '')
+    setActionMenuFor(null)
+    composerInputRef.current?.focus()
+  }
+
+  const cancelEdit = () => {
+    setEditingMessage(null)
+    setText('')
   }
 
   const forwardMessage = async (messageId, targetConvId) => {
@@ -1069,6 +1128,15 @@ export default function ChatRoomPage() {
       return next
     })
     setViewerMedia((prev) => (prev?.id === media.id ? null : prev))
+  }
+
+  const deleteTextMessage = async (messageId) => {
+    const { error: err } = await supabase.from('messages').delete().eq('id', messageId)
+    if (err) {
+      setError(err.message)
+      return
+    }
+    setMessages((prev) => prev.filter((m) => m.id !== messageId))
   }
 
   const visibleMedia = activeFolderId
@@ -1568,6 +1636,10 @@ export default function ChatRoomPage() {
               </div>
             )}
 
+            <button type="button" className="btn btn-ghost btn-block" onClick={toggleMute}>
+              {membersById[user.id]?.muted ? '🔔 Riattiva notifiche' : '🔕 Silenzia notifiche'}
+            </button>
+
             {isGroup && (
               <button type="button" className="btn btn-ghost btn-block chat-leave-btn" onClick={leaveGroup}>
                 Esci dal gruppo
@@ -1725,7 +1797,10 @@ export default function ChatRoomPage() {
                         </div>
                       )}
                       {m.type === 'text' && (
-                        <span className="chat-bubble-content">{renderWithMentions(m.content)}</span>
+                        <span className="chat-bubble-content">
+                          {renderWithMentions(m.content)}
+                          {m.edited_at && <span className="chat-bubble-edited"> (modificato)</span>}
+                        </span>
                       )}
                       {m.type !== 'text' && media && (media.type === 'image' || media.type === 'video') && (
                         <div
@@ -1829,21 +1904,27 @@ export default function ChatRoomPage() {
                   ➦ Inoltra
                 </button>
                 {messagesById[actionMenuFor]?.sender_id === user.id &&
-                  mediaByMsg[actionMenuFor] && (
-                    <button
-                      type="button"
-                      className="chat-action-item chat-action-item-danger"
-                      onClick={() => {
-                        const media = mediaByMsg[actionMenuFor]
-                        setActionMenuFor(null)
-                        if (media && window.confirm('Eliminare definitivamente questo media?')) {
-                          deleteMedia(media)
-                        }
-                      }}
-                    >
-                      🗑 Elimina
+                  messagesById[actionMenuFor]?.type === 'text' && (
+                    <button type="button" className="chat-action-item" onClick={() => startEdit(actionMenuFor)}>
+                      ✎ Modifica
                     </button>
                   )}
+                {messagesById[actionMenuFor]?.sender_id === user.id && (
+                  <button
+                    type="button"
+                    className="chat-action-item chat-action-item-danger"
+                    onClick={() => {
+                      const targetId = actionMenuFor
+                      const media = mediaByMsg[targetId]
+                      setActionMenuFor(null)
+                      if (!window.confirm('Eliminare definitivamente questo messaggio?')) return
+                      if (media) deleteMedia(media)
+                      else deleteTextMessage(targetId)
+                    }}
+                  >
+                    🗑 Elimina
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -1877,7 +1958,19 @@ export default function ChatRoomPage() {
             </div>
           )}
 
-          {replyTo && (
+          {editingMessage && (
+            <div className="chat-reply-bar glass">
+              <div className="chat-reply-bar-info">
+                <span className="chat-reply-bar-name">Modifica messaggio</span>
+                <span className="chat-reply-bar-snippet">{editingMessage.content}</span>
+              </div>
+              <button type="button" className="chat-reply-bar-close" onClick={cancelEdit}>
+                ×
+              </button>
+            </div>
+          )}
+
+          {replyTo && !editingMessage && (
             <div className="chat-reply-bar glass">
               <div className="chat-reply-bar-info">
                 <span className="chat-reply-bar-name">
