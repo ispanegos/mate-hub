@@ -15,6 +15,9 @@ const TYPE_ICON = {
   conversation_invite: '✉️',
   group_proposal: '🗳️',
   mention: '📣',
+  event_reminder: '⏰',
+  pagella_reminder: '⭐',
+  poll: '📊',
 }
 
 function timeAgo(dateString) {

@@ -479,6 +479,100 @@
   margin-top: 4px;
 }
 
+/* --- sondaggi lampo --- */
+
+.chat-polls {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 2px;
+}
+
+.chat-poll-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: var(--r-card);
+}
+
+.chat-poll-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-poll-question {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.chat-poll-close {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.chat-poll-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--r-control);
+  border: 1px solid var(--glass-border);
+  background: var(--surface);
+  overflow: hidden;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.chat-poll-option.is-mine {
+  border-color: rgba(255, 175, 0, 0.4);
+}
+
+.chat-poll-option-bar {
+  position: absolute;
+  inset: 0;
+  right: auto;
+  background: rgba(255, 175, 0, 0.16);
+  transition: width var(--dur) var(--ease);
+}
+
+.chat-poll-option-label {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-poll-option-count {
+  position: relative;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.chat-poll-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 /* --- tab Chat / Archivio / Split (nella topbar) --- */
 
 .chat-tab {

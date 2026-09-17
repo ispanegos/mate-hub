@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { STAT_DEFS, buildStarsProfile, formatStatValue } from '../lib/stars'
+import { BADGE_DEFS } from '../lib/badges'
+import { useUserBadges } from '../hooks/useUserBadges'
 import RadarChart from './RadarChart'
 import './StarsCard.css'
 import './RadarChart.css'
@@ -9,6 +11,7 @@ export default function StarsCard({ userId }) {
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState(null)
   const [showInfo, setShowInfo] = useState(false)
+  const badges = useUserBadges(userId)
 
   useEffect(() => {
     if (!userId) return
@@ -33,6 +36,21 @@ export default function StarsCard({ userId }) {
   return (
     <div className="stars-card glass">
       <p className="stars-card-title">Pagella</p>
+
+      {badges.length > 0 && (
+        <div className="stars-badges">
+          {badges.map((key) => {
+            const def = BADGE_DEFS[key]
+            if (!def) return null
+            return (
+              <span key={key} className="stars-badge" title={def.description}>
+                {def.emoji} {def.label}
+              </span>
+            )
+          })}
+        </div>
+      )}
+
       <div className="stars-overall">
         <span className="stars-overall-value">
           {profile.overall === null ? 'N/V' : profile.overall.toFixed(1)}

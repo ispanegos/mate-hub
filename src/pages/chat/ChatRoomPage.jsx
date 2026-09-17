@@ -189,6 +189,12 @@ export default function ChatRoomPage() {
   const [replyTo, setReplyTo] = useState(null)
   const [editingMessage, setEditingMessage] = useState(null)
   const [trashedMessages, setTrashedMessages] = useState([])
+  const [polls, setPolls] = useState([])
+  const [pollOptions, setPollOptions] = useState([])
+  const [pollVotes, setPollVotes] = useState([])
+  const [showPollForm, setShowPollForm] = useState(false)
+  const [pollQuestion, setPollQuestion] = useState('')
+  const [pollOptionInputs, setPollOptionInputs] = useState(['', ''])
   const [chatSearchOpen, setChatSearchOpen] = useState(false)
   const [chatSearchQuery, setChatSearchQuery] = useState('')
   const [forwardSheetFor, setForwardSheetFor] = useState(null)
@@ -1277,6 +1283,99 @@ export default function ChatRoomPage() {
     setTrashedMessages((prev) => prev.filter((m) => m.id !== messageId))
   }
 
+  // --- sondaggi lampo (informali, non vincolanti come le proposte di gruppo) ---
+  const loadPolls = useCallback(async () => {
+    const { data: pollRows } = await supabase
+      .from('group_polls')
+      .select('*')
+      .eq('conversation_id', id)
+      .eq('status', 'open')
+      .order('created_at', { ascending: false })
+    setPolls(pollRows || [])
+    if (pollRows?.length) {
+      const pollIds = pollRows.map((p) => p.id)
+      const { data: opts } = await supabase.from('group_poll_options').select('*').in('poll_id', pollIds)
+      setPollOptions(opts || [])
+      const { data: votes } = await supabase.from('group_poll_votes').select('*').in('poll_id', pollIds)
+      setPollVotes(votes || [])
+    } else {
+      setPollOptions([])
+      setPollVotes([])
+    }
+  }, [id])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on mount/quando si diventa membro
+    if (isMember) loadPolls()
+  }, [isMember, loadPolls])
+
+  useEffect(() => {
+    if (!isMember) return
+    const channel = supabase
+      .channel(`chat-polls-${id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_polls', filter: `conversation_id=eq.${id}` }, () => loadPolls())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_poll_options' }, () => loadPolls())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_poll_votes' }, () => loadPolls())
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [id, isMember, loadPolls])
+
+  const resetPollForm = () => {
+    setPollQuestion('')
+    setPollOptionInputs(['', ''])
+    setShowPollForm(false)
+  }
+
+  const createPoll = async (event) => {
+    event.preventDefault()
+    const question = pollQuestion.trim()
+    const options = pollOptionInputs.map((o) => o.trim()).filter(Boolean)
+    if (!question || options.length < 2) return
+
+    const { data: poll, error: pollErr } = await supabase
+      .from('group_polls')
+      .insert({ conversation_id: id, question, created_by: user.id })
+      .select()
+      .single()
+    if (pollErr) {
+      setError(pollErr.message)
+      return
+    }
+
+    const { error: optErr } = await supabase
+      .from('group_poll_options')
+      .insert(options.map((label) => ({ poll_id: poll.id, label })))
+    if (optErr) {
+      setError(optErr.message)
+      return
+    }
+
+    notifyUsers({
+      userIds: otherMemberIds,
+      actorId: user.id,
+      type: 'poll',
+      title: 'Nuovo sondaggio',
+      body: question,
+      link: `/chat/${id}`,
+      conversationId: id,
+    })
+
+    resetPollForm()
+    loadPolls()
+  }
+
+  const votePoll = async (pollId, optionId) => {
+    await supabase
+      .from('group_poll_votes')
+      .upsert({ poll_id: pollId, option_id: optionId, voter_id: user.id }, { onConflict: 'poll_id,voter_id' })
+    loadPolls()
+  }
+
+  const closePoll = async (pollId) => {
+    await supabase.from('group_polls').update({ status: 'closed' }).eq('id', pollId)
+    loadPolls()
+  }
+
   const visibleMedia = activeFolderId
     ? allMedia.filter((m) => (mediaFolderMap[m.id] || []).includes(activeFolderId))
     : allMedia
@@ -1934,6 +2033,47 @@ export default function ChatRoomPage() {
             </div>
           )}
 
+          {polls.length > 0 && (
+            <div className="chat-polls">
+              {polls.map((poll) => {
+                const options = pollOptions.filter((o) => o.poll_id === poll.id)
+                const totalVotes = pollVotes.filter((v) => v.poll_id === poll.id).length
+                const myVote = pollVotes.find((v) => v.poll_id === poll.id && v.voter_id === user.id)
+                return (
+                  <div key={poll.id} className="chat-poll-card glass">
+                    <div className="chat-poll-head">
+                      <span className="chat-poll-question">📊 {poll.question}</span>
+                      {poll.created_by === user.id && (
+                        <button type="button" className="chat-poll-close" onClick={() => closePoll(poll.id)}>
+                          Chiudi
+                        </button>
+                      )}
+                    </div>
+                    {options.map((o) => {
+                      const count = pollVotes.filter((v) => v.poll_id === poll.id && v.option_id === o.id).length
+                      const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0
+                      const isMine = myVote?.option_id === o.id
+                      return (
+                        <button
+                          key={o.id}
+                          type="button"
+                          className={`chat-poll-option${isMine ? ' is-mine' : ''}`}
+                          onClick={() => votePoll(poll.id, o.id)}
+                        >
+                          <span className="chat-poll-option-bar" style={{ width: `${pct}%` }} />
+                          <span className="chat-poll-option-label">{o.label}</span>
+                          <span className="chat-poll-option-count">
+                            {count} {totalVotes > 0 ? `(${pct}%)` : ''}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
           <div className="chat-messages" ref={scrollRef}>
             {visibleChatMessages.map((m) => {
               const mine = m.sender_id === user.id
@@ -2153,6 +2293,59 @@ export default function ChatRoomPage() {
             </div>
           )}
 
+          {showPollForm && (
+            <div className="chat-action-overlay" onClick={resetPollForm}>
+              <div className="chat-action-sheet glass-strong" onClick={(e) => e.stopPropagation()}>
+                <p className="chat-info-topbar-label">Nuovo sondaggio</p>
+                <form className="chat-poll-form" onSubmit={createPoll}>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Domanda…"
+                    value={pollQuestion}
+                    onChange={(e) => setPollQuestion(e.target.value)}
+                    autoFocus
+                  />
+                  {pollOptionInputs.map((value, i) => (
+                    <input
+                      key={i}
+                      type="text"
+                      className="input"
+                      placeholder={`Opzione ${i + 1}`}
+                      value={value}
+                      onChange={(e) => {
+                        const next = [...pollOptionInputs]
+                        next[i] = e.target.value
+                        setPollOptionInputs(next)
+                      }}
+                    />
+                  ))}
+                  {pollOptionInputs.length < 6 && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      onClick={() => setPollOptionInputs((prev) => [...prev, ''])}
+                    >
+                      + Aggiungi opzione
+                    </button>
+                  )}
+                  <div className="expense-form-actions">
+                    <button type="button" className="btn btn-ghost" onClick={resetPollForm}>
+                      Annulla
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={!pollQuestion.trim() || pollOptionInputs.filter((o) => o.trim()).length < 2}
+                    >
+                      Crea sondaggio
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
           {Object.keys(typingUsers).length > 0 && (
             <p className="chat-typing-hint">
               {Object.values(typingUsers).join(', ')}{' '}
@@ -2224,6 +2417,15 @@ export default function ChatRoomPage() {
               disabled={!isOnline}
             >
               <MicIcon active={recording} />
+            </button>
+            <button
+              type="button"
+              className="chat-icon-btn"
+              onClick={() => setShowPollForm(true)}
+              aria-label="Crea sondaggio"
+              disabled={!isOnline}
+            >
+              📊
             </button>
             <input
               ref={composerInputRef}
