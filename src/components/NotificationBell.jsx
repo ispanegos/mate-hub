@@ -13,6 +13,7 @@ const TYPE_ICON = {
   friend_accept: '✅',
   stars_vote: '⭐',
   conversation_invite: '✉️',
+  group_proposal: '🗳️',
 }
 
 function timeAgo(dateString) {

@@ -84,6 +84,11 @@ function displayNameOf(profile) {
   return full || profile.username
 }
 
+function ProposalAvatarThumb({ path }) {
+  const url = useGroupAvatarUrl({ type: 'group', avatar_url: path })
+  return <Avatar url={url} label="?" size={28} />
+}
+
 function ImageIcon() {
   return (
     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
@@ -150,9 +155,10 @@ export default function ChatRoomPage() {
   const [banRequests, setBanRequests] = useState([])
   const [banVotes, setBanVotes] = useState([])
 
-  const [nameDraft, setNameDraft] = useState('')
-  const [savingName, setSavingName] = useState(false)
-  const [nameSaved, setNameSaved] = useState(false)
+  const [proposals, setProposals] = useState([])
+  const [proposalOptions, setProposalOptions] = useState([])
+  const [proposalVotes, setProposalVotes] = useState([])
+  const [nameProposalDraft, setNameProposalDraft] = useState('')
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const avatarInputRef = useRef(null)
 
@@ -298,7 +304,6 @@ export default function ChatRoomPage() {
         .single()
       if (convErr) throw convErr
       setConversation(conv)
-      setNameDraft(conv.name || '')
 
       const mine = await loadMembers()
 
@@ -354,7 +359,7 @@ export default function ChatRoomPage() {
     return () => supabase.removeChannel(channel)
   }, [id, loadMembers])
 
-  // realtime: info conversazione (nome/immagine)
+  // realtime: info conversazione (nome/immagine) + eliminazione gruppo votata
   useEffect(() => {
     const channel = supabase
       .channel(`chat-conv-${id}`)
@@ -363,12 +368,18 @@ export default function ChatRoomPage() {
         { event: 'UPDATE', schema: 'public', table: 'conversations', filter: `id=eq.${id}` },
         (payload) => {
           setConversation(payload.new)
-          setNameDraft((prev) => (document.activeElement?.id === 'chat-name-input' ? prev : payload.new.name || ''))
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'conversations', filter: `id=eq.${id}` },
+        () => {
+          navigate('/', { replace: true })
         },
       )
       .subscribe()
     return () => supabase.removeChannel(channel)
-  }, [id])
+  }, [id, navigate])
 
   // realtime messages + media
   useEffect(() => {
@@ -677,24 +688,137 @@ export default function ChatRoomPage() {
     })
   }
 
-  // --- info conversazione (nome + immagine) ---
-  const saveName = async (event) => {
-    event.preventDefault()
-    const value = nameDraft.trim()
-    if (!value || value === conversation.name) return
-    setSavingName(true)
-    const { error: err } = await supabase.from('conversations').update({ name: value }).eq('id', id)
-    setSavingName(false)
-    if (err) {
-      setError(err.message)
+  // --- proposte di gruppo (rename / foto / eliminazione), decise a maggioranza ---
+  const loadProposals = useCallback(async () => {
+    const { data: props } = await supabase
+      .from('conversation_proposals')
+      .select('*')
+      .eq('conversation_id', id)
+      .eq('status', 'open')
+    setProposals(props || [])
+    if (props?.length) {
+      const proposalIds = props.map((p) => p.id)
+      const { data: opts } = await supabase
+        .from('conversation_proposal_options')
+        .select('*')
+        .in('proposal_id', proposalIds)
+      setProposalOptions(opts || [])
+      const { data: votes } = await supabase
+        .from('conversation_proposal_votes')
+        .select('*')
+        .in('proposal_id', proposalIds)
+      setProposalVotes(votes || [])
+    } else {
+      setProposalOptions([])
+      setProposalVotes([])
+    }
+  }, [id])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch when panel opens
+    if (showInfo && isMember) loadProposals()
+  }, [showInfo, isMember, loadProposals])
+
+  const openProposalOfType = (type) => proposals.find((p) => p.type === type)
+
+  const createProposal = async (type, newLabel, newValue) => {
+    const defaults = {
+      rename: {
+        label: `Mantieni "${conversation.name || 'Gruppo senza nome'}"`,
+        value: conversation.name || null,
+      },
+      avatar: { label: 'Mantieni la foto attuale', value: conversation.avatar_url || null },
+      delete: { label: 'Mantieni il gruppo', value: null },
+    }
+    const def = defaults[type]
+
+    const { data: prop, error: propErr } = await supabase
+      .from('conversation_proposals')
+      .insert({ conversation_id: id, type, requested_by: user.id })
+      .select()
+      .single()
+    if (propErr) {
+      setError(propErr.message)
       return
     }
-    setConversation((prev) => ({ ...prev, name: value }))
-    setNameSaved(true)
-    setTimeout(() => setNameSaved(false), 1800)
+
+    const { data: opts, error: optErr } = await supabase
+      .from('conversation_proposal_options')
+      .insert([
+        { proposal_id: prop.id, label: def.label, value: def.value, is_default: true, proposed_by: user.id },
+        { proposal_id: prop.id, label: newLabel, value: newValue, is_default: false, proposed_by: user.id },
+      ])
+      .select()
+    if (optErr) {
+      setError(optErr.message)
+      return
+    }
+
+    const myOption = opts.find((o) => !o.is_default)
+    await supabase
+      .from('conversation_proposal_votes')
+      .upsert(
+        { proposal_id: prop.id, option_id: myOption.id, voter_id: user.id },
+        { onConflict: 'proposal_id,voter_id' },
+      )
+
+    notifyUsers({
+      userIds: otherMemberIds,
+      actorId: user.id,
+      type: 'group_proposal',
+      title: 'Nuova proposta nel gruppo',
+      body: `${displayNameOf(membersById[user.id]?.profile)} ha proposto: ${newLabel}`,
+      link: `/chat/${id}`,
+      conversationId: id,
+    })
+
+    loadProposals()
   }
 
-  const uploadGroupAvatar = async (event) => {
+  const addProposalOption = async (proposalId, label, value) => {
+    const { data: opt, error: optErr } = await supabase
+      .from('conversation_proposal_options')
+      .insert({ proposal_id: proposalId, label, value, is_default: false, proposed_by: user.id })
+      .select()
+      .single()
+    if (optErr) {
+      setError(optErr.message)
+      return
+    }
+    await supabase
+      .from('conversation_proposal_votes')
+      .upsert(
+        { proposal_id: proposalId, option_id: opt.id, voter_id: user.id },
+        { onConflict: 'proposal_id,voter_id' },
+      )
+    loadProposals()
+  }
+
+  const castProposalVote = async (proposalId, optionId) => {
+    await supabase
+      .from('conversation_proposal_votes')
+      .upsert({ proposal_id: proposalId, option_id: optionId, voter_id: user.id }, { onConflict: 'proposal_id,voter_id' })
+
+    const { data: conv } = await supabase.from('conversations').select('*').eq('id', id).maybeSingle()
+    if (!conv) {
+      navigate('/', { replace: true })
+      return
+    }
+    setConversation(conv)
+    loadProposals()
+  }
+
+  const submitNameProposal = async (event) => {
+    event.preventDefault()
+    const value = nameProposalDraft.trim()
+    if (!value) return
+    setNameProposalDraft('')
+    const open = openProposalOfType('rename')
+    if (open) await addProposalOption(open.id, value, value)
+    else await createProposal('rename', value, value)
+  }
+
+  const uploadAvatarProposal = async (event) => {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
@@ -712,25 +836,31 @@ export default function ChatRoomPage() {
     setUploadingAvatar(true)
     try {
       const ext = file.name.split('.').pop() || 'jpg'
-      const path = `${id}/_group_avatar.${ext}`
+      const path = `${id}/_proposal_avatar_${crypto.randomUUID()}.${ext}`
       const { error: upErr } = await supabase.storage
         .from('chat-media')
-        .upload(path, file, { upsert: true, contentType: file.type })
+        .upload(path, file, { contentType: file.type })
       if (upErr) throw upErr
 
-      const versionedPath = `${path}?v=${Date.now()}`
-      const { error: updErr } = await supabase
-        .from('conversations')
-        .update({ avatar_url: versionedPath })
-        .eq('id', id)
-      if (updErr) throw updErr
-
-      setConversation((prev) => ({ ...prev, avatar_url: versionedPath }))
+      const open = openProposalOfType('avatar')
+      if (open) await addProposalOption(open.id, 'Nuova foto proposta', path)
+      else await createProposal('avatar', 'Nuova foto proposta', path)
     } catch (err) {
       setError(err.message || 'Caricamento immagine non riuscito')
     } finally {
       setUploadingAvatar(false)
     }
+  }
+
+  const proposeDeleteGroup = async () => {
+    if (openProposalOfType('delete')) return
+    await createProposal('delete', 'Elimina il gruppo', null)
+  }
+
+  const leaveGroup = async () => {
+    if (!window.confirm('Uscire da questo gruppo?')) return
+    await supabase.from('conversation_members').delete().eq('conversation_id', id).eq('user_id', user.id)
+    navigate('/', { replace: true })
   }
 
   // --- membri / ban ---
@@ -1353,36 +1483,91 @@ export default function ChatRoomPage() {
                   type="file"
                   accept="image/*"
                   hidden
-                  onChange={uploadGroupAvatar}
+                  onChange={uploadAvatarProposal}
                 />
               )}
 
-              {isGroup ? (
-                <form className="chat-info-name-form" onSubmit={saveName}>
-                  <input
-                    id="chat-name-input"
-                    type="text"
-                    className="input"
-                    value={nameDraft}
-                    onChange={(e) => {
-                      setNameDraft(e.target.value)
-                      setNameSaved(false)
-                    }}
-                    placeholder="Nome gruppo"
-                  />
-                  <button
-                    type="submit"
-                    className={`btn btn-secondary${nameSaved ? ' btn-saved' : ''}`}
-                    disabled={savingName || !nameDraft.trim() || nameDraft.trim() === conversation.name}
-                  >
-                    {savingName ? 'Salvataggio…' : nameSaved ? 'Salvato ✓' : 'Salva'}
-                  </button>
-                </form>
-              ) : (
-                <span className="chat-info-direct-name">{title}</span>
-              )}
+              <span className="chat-info-direct-name">{title}</span>
               {uploadingAvatar && <p className="profile-hint">Caricamento immagine…</p>}
             </div>
+
+            {isGroup && (
+              <div className="chat-proposal-section">
+                <p className="chat-info-members-title">Proposte di gruppo</p>
+                <p className="chat-proposal-hint">
+                  Rinominare, cambiare foto o eliminare il gruppo richiede il voto della maggioranza dei membri.
+                </p>
+
+                {proposals.map((p) => {
+                  const options = proposalOptions.filter((o) => o.proposal_id === p.id)
+                  const myVote = proposalVotes.find((v) => v.proposal_id === p.id && v.voter_id === user.id)
+                  const titleByType = {
+                    rename: 'Proposta: cambio nome',
+                    avatar: 'Proposta: cambio foto',
+                    delete: 'Proposta: eliminazione gruppo',
+                  }
+                  return (
+                    <div key={p.id} className="chat-proposal-card">
+                      <p className="chat-proposal-title">{titleByType[p.type]}</p>
+                      {options.map((o) => {
+                        const count = proposalVotes.filter(
+                          (v) => v.proposal_id === p.id && v.option_id === o.id,
+                        ).length
+                        const isMine = myVote?.option_id === o.id
+                        return (
+                          <div key={o.id} className="chat-proposal-option">
+                            {p.type === 'avatar' && <ProposalAvatarThumb path={o.value} />}
+                            <span className="chat-proposal-option-label">{o.label}</span>
+                            <span className="chat-proposal-option-count">{count}</span>
+                            <button
+                              type="button"
+                              className={`chat-vote-btn${isMine ? ' is-active' : ''}`}
+                              onClick={() => castProposalVote(p.id, o.id)}
+                            >
+                              {isMine ? 'Votato ✓' : 'Vota'}
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
+
+                <form className="chat-info-name-form" onSubmit={submitNameProposal}>
+                  <input
+                    type="text"
+                    className="input"
+                    value={nameProposalDraft}
+                    onChange={(e) => setNameProposalDraft(e.target.value)}
+                    placeholder="Proponi un nuovo nome…"
+                  />
+                  <button type="submit" className="btn btn-secondary" disabled={!nameProposalDraft.trim()}>
+                    Proponi
+                  </button>
+                </form>
+
+                <div className="chat-proposal-actions">
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => avatarInputRef.current?.click()}
+                  >
+                    Proponi nuova foto
+                  </button>
+                  {!openProposalOfType('delete') && (
+                    <button type="button" className="chat-ban-btn" onClick={proposeDeleteGroup}>
+                      Proponi eliminazione gruppo
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {isGroup && (
+              <button type="button" className="btn btn-ghost btn-block chat-leave-btn" onClick={leaveGroup}>
+                Esci dal gruppo
+              </button>
+            )}
 
             <p className="chat-info-members-title">Membri · {members.length}</p>
             {members.map((m) => (
