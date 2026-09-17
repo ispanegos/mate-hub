@@ -28,45 +28,23 @@
   min-height: 52px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   padding: 0 6px;
   z-index: 5;
 }
 
-.chat-title-btn {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: none;
-  background: transparent;
-  padding: 4px 4px 4px 6px;
-  cursor: pointer;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.chat-title-btn:disabled {
-  cursor: default;
-}
-
-.chat-room-title {
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-  font-weight: 700;
-  font-size: 14.5px;
-  color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .chat-header-tabs {
   display: flex;
-  gap: 4px;
-  flex-shrink: 0;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 8px 2px;
+}
+
+.chat-header-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .chat-icon-btn {
@@ -711,13 +689,14 @@
 /* --- tab Chat / Archivio / Split (nella topbar) --- */
 
 .chat-tab {
-  padding: 8px 10px;
+  flex-shrink: 0;
+  padding: 8px 12px;
   border-radius: var(--r-control);
   border: 1px solid var(--glass-border);
   background: transparent;
   color: var(--ink-soft);
   font-weight: 600;
-  font-size: 12px;
+  font-size: 12.5px;
   cursor: pointer;
   white-space: nowrap;
 }

@@ -31,6 +31,7 @@ export default function AppShell() {
   const isOnline = useOnlineStatus()
   const [onboardingOpen, setOnboardingOpen] = useState(false)
   const [headerTitle, setHeaderTitle] = useState(null)
+  const [headerAvatar, setHeaderAvatar] = useState(null)
 
   return (
     <div className="app-shell">
@@ -46,9 +47,20 @@ export default function AppShell() {
               <BackIcon />
             </button>
           )}
-          <NavLink to="/" className="app-header-title" end>
-            {headerTitle || 'Mate HUB'}
-          </NavLink>
+          {headerAvatar ? (
+            <button
+              type="button"
+              className="app-header-title app-header-title-with-avatar"
+              onClick={headerAvatar.onClick}
+            >
+              <Avatar url={headerAvatar.url} label={headerTitle} size={30} />
+              <span>{headerTitle}</span>
+            </button>
+          ) : (
+            <NavLink to="/" className="app-header-title" end>
+              {headerTitle || 'Mate HUB'}
+            </NavLink>
+          )}
         </div>
         <div className="app-header-actions">
           <ThemeToggle />
@@ -63,7 +75,7 @@ export default function AppShell() {
 
       <main className="app-content">
         <Suspense fallback={<div className="app-route-loading">Caricamento…</div>}>
-          <Outlet context={{ reopenOnboarding: () => setOnboardingOpen(true), setHeaderTitle }} />
+          <Outlet context={{ reopenOnboarding: () => setOnboardingOpen(true), setHeaderTitle, setHeaderAvatar }} />
         </Suspense>
       </main>
 

@@ -146,7 +146,7 @@ export default function ChatRoomPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const isOnline = useOnlineStatus()
-  const { setHeaderTitle } = useOutletContext() || {}
+  const { setHeaderTitle, setHeaderAvatar } = useOutletContext() || {}
   const { friends } = useFriends()
   const [showInviteFriends, setShowInviteFriends] = useState(false)
   const [invitingId, setInvitingId] = useState(null)
@@ -273,11 +273,26 @@ export default function ChatRoomPage() {
     return conversation.name || 'Gruppo senza nome'
   }, [conversation, otherProfile])
 
+  const headerAvatarUrl = isGroup ? groupAvatarSignedUrl : otherProfile?.avatar_url
+
   useEffect(() => {
     if (!setHeaderTitle) return
     setHeaderTitle(conversation ? title : null)
     return () => setHeaderTitle(null)
   }, [setHeaderTitle, conversation, title])
+
+  useEffect(() => {
+    if (!setHeaderAvatar) return
+    if (!conversation) {
+      setHeaderAvatar(null)
+      return
+    }
+    setHeaderAvatar({
+      url: headerAvatarUrl,
+      onClick: () => isMember && setShowInfo((v) => !v),
+    })
+    return () => setHeaderAvatar(null)
+  }, [setHeaderAvatar, conversation, headerAvatarUrl, isMember])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset del picker quando cambia messaggio/si chiude
@@ -1916,36 +1931,10 @@ export default function ChatRoomPage() {
     return <div className="chat-room-loading alert-error">{error}</div>
   }
 
-  const headerAvatarUrl = isGroup ? groupAvatarSignedUrl : otherProfile?.avatar_url
-
   return (
     <div className="chat-room">
-      <header className="chat-room-header glass-strong">
-        <button
-          type="button"
-          className="chat-title-btn"
-          onClick={() => isMember && setShowInfo((v) => !v)}
-          disabled={!isMember}
-        >
-          <Avatar url={headerAvatarUrl} label={title} size={30} />
-          <span className="chat-room-title">{title}</span>
-        </button>
-
-        {isMember && tab === 'chat' && (
-          <button
-            type="button"
-            className="chat-icon-btn"
-            aria-label="Cerca nella chat"
-            onClick={() => {
-              setChatSearchOpen((v) => !v)
-              setChatSearchQuery('')
-            }}
-          >
-            🔍
-          </button>
-        )}
-
-        {isMember && (
+      {isMember && (
+        <header className="chat-room-header glass-strong">
           <div className="chat-header-tabs">
             <button
               type="button"
@@ -1983,8 +1972,22 @@ export default function ChatRoomPage() {
               Bacheca
             </button>
           </div>
-        )}
-      </header>
+
+          {tab === 'chat' && (
+            <button
+              type="button"
+              className="chat-icon-btn"
+              aria-label="Cerca nella chat"
+              onClick={() => {
+                setChatSearchOpen((v) => !v)
+                setChatSearchQuery('')
+              }}
+            >
+              🔍
+            </button>
+          )}
+        </header>
+      )}
 
       {myStatus === 'invited' && (
         <div className="chat-invite-gate">
