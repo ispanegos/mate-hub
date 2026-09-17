@@ -1325,16 +1325,77 @@ export default function ChatRoomPage() {
     if (isMember) loadPolls()
   }, [isMember, loadPolls])
 
+  const removePollLocally = (pollId) => {
+    setPolls((prev) => prev.filter((p) => p.id !== pollId))
+    setPollOptions((prev) => prev.filter((o) => o.poll_id !== pollId))
+    setPollVotes((prev) => prev.filter((v) => v.poll_id !== pollId))
+  }
+
+  // Aggiornamento incrementale invece di ricaricare sondaggi/opzioni/voti a ogni
+  // evento: con più persone che votano nello stesso sondaggio un reload completo
+  // a ogni voto sarebbe uno spreco. Nessun filtro conversation_id lato server su
+  // opzioni/voti (le tabelle non hanno quella colonna): li accettiamo comunque,
+  // sono innocui perché il render li filtra già per poll_id appartenente a questa
+  // conversazione (la RLS garantisce comunque che arrivino solo eventi di poll
+  // visibili a chi guarda).
   useEffect(() => {
     if (!isMember) return
     const channel = supabase
       .channel(`chat-polls-${id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_polls', filter: `conversation_id=eq.${id}` }, () => loadPolls())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_poll_options' }, () => loadPolls())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_poll_votes' }, () => loadPolls())
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'group_polls', filter: `conversation_id=eq.${id}` },
+        (payload) => setPolls((prev) => (prev.some((p) => p.id === payload.new.id) ? prev : [payload.new, ...prev])),
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'group_polls', filter: `conversation_id=eq.${id}` },
+        (payload) => {
+          if (payload.new.status !== 'open') removePollLocally(payload.new.id)
+          else setPolls((prev) => prev.map((p) => (p.id === payload.new.id ? payload.new : p)))
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'group_polls' },
+        (payload) => removePollLocally(payload.old.id),
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'group_poll_options' },
+        (payload) =>
+          setPollOptions((prev) => (prev.some((o) => o.id === payload.new.id) ? prev : [...prev, payload.new])),
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'group_poll_votes' },
+        (payload) =>
+          setPollVotes((prev) => [
+            ...prev.filter((v) => !(v.poll_id === payload.new.poll_id && v.voter_id === payload.new.voter_id)),
+            payload.new,
+          ]),
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'group_poll_votes' },
+        (payload) =>
+          setPollVotes((prev) =>
+            prev.map((v) =>
+              v.poll_id === payload.new.poll_id && v.voter_id === payload.new.voter_id ? payload.new : v,
+            ),
+          ),
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'group_poll_votes' },
+        (payload) =>
+          setPollVotes((prev) =>
+            prev.filter((v) => !(v.poll_id === payload.old.poll_id && v.voter_id === payload.old.voter_id)),
+          ),
+      )
       .subscribe()
     return () => supabase.removeChannel(channel)
-  }, [id, isMember, loadPolls])
+  }, [id, isMember])
 
   const resetPollForm = () => {
     setPollQuestion('')
@@ -1358,13 +1419,19 @@ export default function ChatRoomPage() {
       return
     }
 
-    const { error: optErr } = await supabase
+    const { data: insertedOptions, error: optErr } = await supabase
       .from('group_poll_options')
       .insert(options.map((label) => ({ poll_id: poll.id, label })))
+      .select()
     if (optErr) {
       setError(optErr.message)
       return
     }
+
+    // aggiornamento ottimistico per chi ha appena creato il sondaggio: non
+    // aspettiamo il giro di ritorno del canale realtime per vederlo comparire
+    setPolls((prev) => (prev.some((p) => p.id === poll.id) ? prev : [poll, ...prev]))
+    setPollOptions((prev) => [...prev, ...(insertedOptions || [])])
 
     notifyUsers({
       userIds: otherMemberIds,
@@ -1377,64 +1444,82 @@ export default function ChatRoomPage() {
     })
 
     resetPollForm()
-    loadPolls()
   }
 
   const votePoll = async (pollId, optionId) => {
-    await supabase
-      .from('group_poll_votes')
-      .upsert({ poll_id: pollId, option_id: optionId, voter_id: user.id }, { onConflict: 'poll_id,voter_id' })
-    loadPolls()
+    const vote = { poll_id: pollId, option_id: optionId, voter_id: user.id }
+    setPollVotes((prev) => [...prev.filter((v) => !(v.poll_id === pollId && v.voter_id === user.id)), vote])
+    await supabase.from('group_poll_votes').upsert(vote, { onConflict: 'poll_id,voter_id' })
   }
 
   const closePoll = async (pollId) => {
+    removePollLocally(pollId)
     await supabase.from('group_polls').update({ status: 'closed' }).eq('id', pollId)
-    loadPolls()
   }
 
   // --- bacheca: frasi pinnate e capsule del tempo ---
-  const loadBacheca = useCallback(async () => {
+  const loadPins = useCallback(async () => {
     const { data: pinRows } = await supabase
       .from('message_pins')
       .select('*')
       .eq('conversation_id', id)
       .order('created_at', { ascending: false })
     setPins(pinRows || [])
+  }, [id])
 
+  const loadCapsules = useCallback(async () => {
     const { data: capsuleRows } = await supabase.rpc('get_time_capsules', { p_conversation_id: id })
     setCapsules(capsuleRows || [])
   }, [id])
 
   useEffect(() => {
+    if (!isMember) return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on mount/quando si diventa membro; serve anche fuori dalla tab per sapere cosa e' gia' pinnato nel menu azioni
-    if (isMember) loadBacheca()
-  }, [isMember, loadBacheca])
+    loadPins()
+    loadCapsules()
+  }, [isMember, loadPins, loadCapsules])
 
   useEffect(() => {
     if (!isMember) return
     const channel = supabase
       .channel(`chat-bacheca-${id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'message_pins', filter: `conversation_id=eq.${id}` }, () => loadBacheca())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'time_capsules', filter: `conversation_id=eq.${id}` }, () => loadBacheca())
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'message_pins', filter: `conversation_id=eq.${id}` },
+        (payload) => setPins((prev) => (prev.some((p) => p.id === payload.new.id) ? prev : [payload.new, ...prev])),
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'message_pins' },
+        (payload) => setPins((prev) => prev.filter((p) => p.id !== payload.old.id)),
+      )
+      // le capsule sigillate sono visibili solo al loro autore lato RLS: l'evento
+      // realtime arriva solo a chi le ha create, quindi un reload leggero qui basta
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'time_capsules', filter: `conversation_id=eq.${id}` }, () => loadCapsules())
       .subscribe()
     return () => supabase.removeChannel(channel)
-  }, [id, isMember, loadBacheca])
+  }, [id, isMember, loadCapsules])
 
   const togglePin = async (messageId) => {
     const existing = pins.find((p) => p.message_id === messageId)
     setActionMenuFor(null)
     if (existing) {
       if (existing.pinned_by !== user.id) return
+      setPins((prev) => prev.filter((p) => p.id !== existing.id))
       await supabase.from('message_pins').delete().eq('id', existing.id)
     } else {
-      await supabase.from('message_pins').insert({ conversation_id: id, message_id: messageId, pinned_by: user.id })
+      const { data } = await supabase
+        .from('message_pins')
+        .insert({ conversation_id: id, message_id: messageId, pinned_by: user.id })
+        .select()
+        .single()
+      if (data) setPins((prev) => (prev.some((p) => p.id === data.id) ? prev : [data, ...prev]))
     }
-    loadBacheca()
   }
 
   const unpin = async (pinId) => {
+    setPins((prev) => prev.filter((p) => p.id !== pinId))
     await supabase.from('message_pins').delete().eq('id', pinId)
-    loadBacheca()
   }
 
   const resetCapsuleForm = () => {
@@ -1458,7 +1543,7 @@ export default function ChatRoomPage() {
       return
     }
     resetCapsuleForm()
-    loadBacheca()
+    loadCapsules()
   }
 
   // --- meteo del gruppo: indicatore scherzoso, solo per i gruppi ---
