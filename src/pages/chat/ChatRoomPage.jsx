@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../context/useAuth'
 import { supabase } from '../../lib/supabase'
 import { useConversations, conversationTitle } from '../../hooks/useConversations'
+import { useGroupAvatarUrl } from '../../hooks/useGroupAvatarUrl'
 import { notifyUsers } from '../../lib/notifications'
 import Avatar from '../../components/Avatar'
 import MediaBubble from './MediaBubble'
@@ -210,7 +211,6 @@ export default function ChatRoomPage() {
   const [activeFolderId, setActiveFolderId] = useState(null)
   const [newFolderName, setNewFolderName] = useState('')
   const [viewerMedia, setViewerMedia] = useState(null)
-  const [groupAvatarSignedUrl, setGroupAvatarSignedUrl] = useState(null)
   const [moveMenuFor, setMoveMenuFor] = useState(null)
   const [moveNewFolderName, setMoveNewFolderName] = useState('')
 
@@ -225,29 +225,7 @@ export default function ChatRoomPage() {
 
   const isMember = myStatus === 'accepted'
   const isGroup = conversation?.type === 'group'
-
-  useEffect(() => {
-    if (!isGroup || !conversation?.avatar_url) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset quando il gruppo non ha (più) un avatar
-      setGroupAvatarSignedUrl(null)
-      return
-    }
-    const marker = '/chat-media/'
-    const idx = conversation.avatar_url.indexOf(marker)
-    const path = (idx === -1 ? conversation.avatar_url : conversation.avatar_url.slice(idx + marker.length)).split(
-      '?',
-    )[0]
-    let active = true
-    supabase.storage
-      .from('chat-media')
-      .createSignedUrl(path, 3600)
-      .then(({ data }) => {
-        if (active && data) setGroupAvatarSignedUrl(data.signedUrl)
-      })
-    return () => {
-      active = false
-    }
-  }, [isGroup, conversation?.avatar_url])
+  const groupAvatarSignedUrl = useGroupAvatarUrl(conversation)
 
   const otherProfile = useMemo(() => {
     if (conversation?.type !== 'direct') return null
@@ -740,15 +718,14 @@ export default function ChatRoomPage() {
         .upload(path, file, { upsert: true, contentType: file.type })
       if (upErr) throw upErr
 
+      const versionedPath = `${path}?v=${Date.now()}`
       const { error: updErr } = await supabase
         .from('conversations')
-        .update({ avatar_url: path })
+        .update({ avatar_url: versionedPath })
         .eq('id', id)
       if (updErr) throw updErr
 
-      const { data: signedData } = await supabase.storage.from('chat-media').createSignedUrl(path, 3600)
-      if (signedData) setGroupAvatarSignedUrl(signedData.signedUrl)
-      setConversation((prev) => ({ ...prev, avatar_url: path }))
+      setConversation((prev) => ({ ...prev, avatar_url: versionedPath }))
     } catch (err) {
       setError(err.message || 'Caricamento immagine non riuscito')
     } finally {

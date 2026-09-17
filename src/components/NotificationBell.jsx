@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useNotifications } from '../hooks/useNotifications'
 import './NotificationBell.css'
@@ -31,15 +31,14 @@ export default function NotificationBell() {
   const navigate = useNavigate()
   const { items, unreadCount, markRead, markAllRead } = useNotifications()
   const [open, setOpen] = useState(false)
-  const panelRef = useRef(null)
 
   useEffect(() => {
     if (!open) return
-    const onClickOutside = (e) => {
-      if (panelRef.current && !panelRef.current.contains(e.target)) setOpen(false)
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setOpen(false)
     }
-    document.addEventListener('mousedown', onClickOutside)
-    return () => document.removeEventListener('mousedown', onClickOutside)
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
   }, [open])
 
   const handleItemClick = (n) => {
@@ -49,7 +48,7 @@ export default function NotificationBell() {
   }
 
   return (
-    <div className="notification-bell" ref={panelRef}>
+    <div className="notification-bell">
       <button
         type="button"
         className={`notification-bell-btn${open ? ' is-active' : ''}`}
@@ -63,34 +62,40 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="notification-panel glass-strong">
-          <div className="notification-panel-head">
-            <span>Notifiche</span>
-            {unreadCount > 0 && (
-              <button type="button" className="notification-panel-mark-all" onClick={markAllRead}>
-                Segna tutte come lette
+        <>
+          <div className="notification-backdrop" onClick={() => setOpen(false)} />
+          <div className="notification-panel glass-strong">
+            <div className="notification-panel-head">
+              <span>Notifiche</span>
+              {unreadCount > 0 && (
+                <button type="button" className="notification-panel-mark-all" onClick={markAllRead}>
+                  Segna tutte come lette
+                </button>
+              )}
+              <button type="button" className="notification-panel-close" onClick={() => setOpen(false)}>
+                ✕
               </button>
-            )}
+            </div>
+            <div className="notification-panel-list">
+              {items.length === 0 && <p className="notification-panel-empty">Nessuna notifica.</p>}
+              {items.map((n) => (
+                <button
+                  key={n.id}
+                  type="button"
+                  className={`notification-item${n.read ? '' : ' is-unread'}`}
+                  onClick={() => handleItemClick(n)}
+                >
+                  <span className="notification-item-icon">{TYPE_ICON[n.type] || '🔔'}</span>
+                  <span className="notification-item-body">
+                    <span className="notification-item-title">{n.title}</span>
+                    {n.body && <span className="notification-item-text">{n.body}</span>}
+                  </span>
+                  <span className="notification-item-time">{timeAgo(n.created_at)}</span>
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="notification-panel-list">
-            {items.length === 0 && <p className="notification-panel-empty">Nessuna notifica.</p>}
-            {items.map((n) => (
-              <button
-                key={n.id}
-                type="button"
-                className={`notification-item${n.read ? '' : ' is-unread'}`}
-                onClick={() => handleItemClick(n)}
-              >
-                <span className="notification-item-icon">{TYPE_ICON[n.type] || '🔔'}</span>
-                <span className="notification-item-body">
-                  <span className="notification-item-title">{n.title}</span>
-                  {n.body && <span className="notification-item-text">{n.body}</span>}
-                </span>
-                <span className="notification-item-time">{timeAgo(n.created_at)}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        </>
       )}
     </div>
   )

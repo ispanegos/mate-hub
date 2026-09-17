@@ -23,6 +23,36 @@
   white-space: nowrap;
 }
 
+.home-filter-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.home-filter-chip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.2;
+  padding: 7px 14px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--glass-border);
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.home-filter-chip.is-active {
+  background: rgba(255, 175, 0, 0.16);
+  color: var(--accent-text);
+  border-color: rgba(255, 175, 0, 0.4);
+}
+
 .home-empty-hint {
   text-align: center;
   color: var(--ink-soft);
