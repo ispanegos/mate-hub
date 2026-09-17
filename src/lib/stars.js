@@ -1,10 +1,40 @@
 export const STAT_DEFS = [
-  { key: 'vibe', emoji: '🔥', label: 'Vibe' },
-  { key: 'team', emoji: '🤝', label: 'Squadra' },
-  { key: 'energy', emoji: '⚡', label: 'Energia' },
-  { key: 'chaos', emoji: '🌪️', label: 'Caos' },
-  { key: 'reliability', emoji: '🎯', label: 'Affidabilità' },
-  { key: 'charisma', emoji: '✨', label: 'Carisma' },
+  {
+    key: 'vibe',
+    emoji: '🔥',
+    label: 'Vibe',
+    description: 'Quanto è piacevole avere questa persona in giro: il mood e l\'atmosfera che porta al gruppo.',
+  },
+  {
+    key: 'team',
+    emoji: '🤝',
+    label: 'Squadra',
+    description: 'Quanto gioca bene di squadra: collabora, include e aiuta gli altri.',
+  },
+  {
+    key: 'energy',
+    emoji: '⚡',
+    label: 'Energia',
+    description: 'Quanta carica ed entusiasmo porta agli eventi e alle attività di gruppo.',
+  },
+  {
+    key: 'chaos',
+    emoji: '🌪️',
+    label: 'Caos',
+    description: 'Quanto genera imprevisti, casino e situazioni fuori controllo (in senso divertente).',
+  },
+  {
+    key: 'reliability',
+    emoji: '🎯',
+    label: 'Affidabilità',
+    description: 'Quanto ci si può contare su di lei/lui: puntualità e impegni mantenuti.',
+  },
+  {
+    key: 'charisma',
+    emoji: '✨',
+    label: 'Carisma',
+    description: 'Quanto attira e coinvolge gli altri con la propria presenza.',
+  },
 ]
 
 export function formatStatValue(value) {

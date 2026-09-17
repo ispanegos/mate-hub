@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { buildStarsProfile, formatStatValue } from '../lib/stars'
+import { STAT_DEFS, buildStarsProfile, formatStatValue } from '../lib/stars'
 import RadarChart from './RadarChart'
 import './StarsCard.css'
 import './RadarChart.css'
@@ -8,6 +8,7 @@ import './RadarChart.css'
 export default function StarsCard({ userId }) {
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState(null)
+  const [showInfo, setShowInfo] = useState(false)
 
   useEffect(() => {
     if (!userId) return
@@ -31,6 +32,15 @@ export default function StarsCard({ userId }) {
 
   return (
     <div className="stars-card glass">
+      <button
+        type="button"
+        className="stars-info-btn"
+        onClick={() => setShowInfo(true)}
+        aria-label="Cosa sono le statistiche STARS"
+      >
+        ⓘ
+      </button>
+
       <div className="stars-overall">
         <span className="stars-overall-value">
           {profile.overall === null ? 'N/V' : profile.overall.toFixed(1)}
@@ -54,6 +64,30 @@ export default function StarsCard({ userId }) {
       </div>
 
       <p className="stars-rated-count">{profile.ratedCount}/6 statistiche valutate</p>
+
+      {showInfo && (
+        <>
+          <div className="stars-info-backdrop" onClick={() => setShowInfo(false)} />
+          <div className="stars-info-panel glass-strong">
+            <div className="stars-info-head">
+              <span>Le statistiche STARS</span>
+              <button type="button" className="stars-info-close" onClick={() => setShowInfo(false)}>
+                ✕
+              </button>
+            </div>
+            <div className="stars-info-list">
+              {STAT_DEFS.map((s) => (
+                <div key={s.key} className="stars-info-item">
+                  <span className="stars-info-item-title">
+                    {s.emoji} {s.label}
+                  </span>
+                  <span className="stars-info-item-desc">{s.description}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

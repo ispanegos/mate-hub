@@ -6,8 +6,8 @@
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  top: var(--top-gap);
-  bottom: calc(var(--bottom-gap) + var(--app-tabbar-h) + var(--chat-gap));
+  top: calc(var(--app-header-h) + var(--top-gap));
+  bottom: calc(var(--bottom-gap) + var(--chat-gap));
   width: calc(100% - var(--app-bar-margin) * 2);
   max-width: var(--app-bar-max-width);
   display: flex;
@@ -630,7 +630,7 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: 0 var(--app-bar-margin) calc(var(--bottom-gap) + var(--app-tabbar-h) + var(--chat-gap));
+  padding: 0 var(--app-bar-margin) calc(var(--bottom-gap) + var(--chat-gap));
 }
 
 .chat-action-sheet {

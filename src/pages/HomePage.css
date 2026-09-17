@@ -75,6 +75,21 @@
   padding: 0 4px;
 }
 
+.home-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.home-manage-friends-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-text);
+  text-decoration: none;
+  padding: 0 4px;
+}
+
 .conversation-list {
   display: flex;
   flex-direction: column;

@@ -19,7 +19,7 @@ function displayNameOf(profile) {
 const FILTERS = [
   { key: 'all', label: 'Tutti' },
   { key: 'group', label: 'Gruppi' },
-  { key: 'direct', label: 'Chat singole' },
+  { key: 'friends', label: 'Amici' },
 ]
 
 export default function HomePage() {
@@ -37,23 +37,20 @@ export default function HomePage() {
 
   const q = query.trim().toLowerCase()
   const matches = (r) => conversationTitle(r.conversation, r.otherProfile).toLowerCase().includes(q)
-  const matchesFilter = (r) => filter === 'all' || r.conversation?.type === filter
+  const matchesFilter = (r) => filter !== 'group' || r.conversation?.type === 'group'
   const filteredActive = active.filter(matchesFilter).filter((r) => !q || matches(r))
   const filteredInvites = invites.filter(matchesFilter).filter((r) => !q || matches(r))
 
-  const directUserIds = new Set(
-    items
-      .filter((r) => r.conversation?.type === 'direct')
-      .map((r) => r.otherProfile?.id)
-      .filter(Boolean),
-  )
+  const directConvByFriendId = {}
+  items.forEach((r) => {
+    if (r.conversation?.type === 'direct' && r.otherProfile?.id) {
+      directConvByFriendId[r.otherProfile.id] = r.conversation_id
+    }
+  })
 
-  const friendsWithoutChat =
-    filter === 'group'
-      ? []
-      : friends
-          .filter(({ profile: p }) => p && !directUserIds.has(p.id))
-          .filter(({ profile: p }) => !q || displayNameOf(p).toLowerCase().includes(q))
+  const filteredFriends = friends
+    .filter(({ profile: p }) => p)
+    .filter(({ profile: p }) => !q || displayNameOf(p).toLowerCase().includes(q))
 
   const respondInvite = async (conversationId, accept) => {
     setBusyId(conversationId)
@@ -106,6 +103,15 @@ export default function HomePage() {
     }
   }
 
+  const openOrStartChat = (friendId) => {
+    const existingId = directConvByFriendId[friendId]
+    if (existingId) {
+      navigate(`/chat/${existingId}`)
+      return
+    }
+    startDirectChat(friendId)
+  }
+
   const nothingToShow =
     !loading && active.length === 0 && invites.length === 0 && friends.length === 0 && filter === 'all' && !q
 
@@ -129,7 +135,7 @@ export default function HomePage() {
         <input
           type="text"
           className="input home-search-input"
-          placeholder="Cerca una conversazione…"
+          placeholder="Cerca per nome…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -151,110 +157,133 @@ export default function HomePage() {
         ))}
       </div>
 
-      {filteredInvites.length > 0 && (
-        <section className="home-section">
-          <h3 className="home-section-title">Inviti</h3>
-          <div className="conversation-list">
-            {filteredInvites.map((r) => (
-              <div key={r.conversation_id} className="conversation-row glass">
-                <ConversationAvatar
-                  conversation={r.conversation}
-                  otherProfile={r.otherProfile}
-                  label={conversationTitle(r.conversation, r.otherProfile)}
-                  size={44}
-                />
-                <div className="conversation-row-info">
-                  <span className="conversation-row-name">
-                    {conversationTitle(r.conversation, r.otherProfile)}
-                  </span>
-                  <span className="conversation-row-hint">Ti hanno invitato</span>
-                </div>
-                <div className="conversation-row-actions">
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    disabled={busyId === r.conversation_id}
-                    onClick={() => respondInvite(r.conversation_id, true)}
-                  >
-                    Accetta
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    disabled={busyId === r.conversation_id}
-                    onClick={() => respondInvite(r.conversation_id, false)}
-                  >
-                    Rifiuta
-                  </button>
-                </div>
+      {filter !== 'friends' && (
+        <>
+          {filteredInvites.length > 0 && (
+            <section className="home-section">
+              <h3 className="home-section-title">Inviti</h3>
+              <div className="conversation-list">
+                {filteredInvites.map((r) => (
+                  <div key={r.conversation_id} className="conversation-row glass">
+                    <ConversationAvatar
+                      conversation={r.conversation}
+                      otherProfile={r.otherProfile}
+                      label={conversationTitle(r.conversation, r.otherProfile)}
+                      size={44}
+                    />
+                    <div className="conversation-row-info">
+                      <span className="conversation-row-name">
+                        {conversationTitle(r.conversation, r.otherProfile)}
+                      </span>
+                      <span className="conversation-row-hint">Ti hanno invitato</span>
+                    </div>
+                    <div className="conversation-row-actions">
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        disabled={busyId === r.conversation_id}
+                        onClick={() => respondInvite(r.conversation_id, true)}
+                      >
+                        Accetta
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        disabled={busyId === r.conversation_id}
+                        onClick={() => respondInvite(r.conversation_id, false)}
+                      >
+                        Rifiuta
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
+            </section>
+          )}
+
+          {filteredActive.length > 0 && (
+            <section className="home-section">
+              <h3 className="home-section-title">Chat</h3>
+              <div className="conversation-list">
+                {filteredActive.map((r) => (
+                  <button
+                    key={r.conversation_id}
+                    type="button"
+                    className="conversation-row conversation-row-btn glass"
+                    onClick={() => navigate(`/chat/${r.conversation_id}`)}
+                  >
+                    <ConversationAvatar
+                      conversation={r.conversation}
+                      otherProfile={r.otherProfile}
+                      label={conversationTitle(r.conversation, r.otherProfile)}
+                      size={44}
+                    />
+                    <div className="conversation-row-info">
+                      <span className="conversation-row-name">
+                        {conversationTitle(r.conversation, r.otherProfile)}
+                      </span>
+                      <span className="conversation-row-hint">
+                        {r.conversation?.type === 'direct' ? 'Chat 1 a 1' : 'Gruppo'}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {q && filteredActive.length === 0 && filteredInvites.length === 0 && (
+            <p className="home-empty-hint">Nessun risultato per "{query.trim()}"</p>
+          )}
+        </>
       )}
 
-      {filteredActive.length > 0 && (
+      {filter === 'friends' && (
         <section className="home-section">
-          <h3 className="home-section-title">Chat</h3>
-          <div className="conversation-list">
-            {filteredActive.map((r) => (
-              <button
-                key={r.conversation_id}
-                type="button"
-                className="conversation-row conversation-row-btn glass"
-                onClick={() => navigate(`/chat/${r.conversation_id}`)}
-              >
-                <ConversationAvatar
-                  conversation={r.conversation}
-                  otherProfile={r.otherProfile}
-                  label={conversationTitle(r.conversation, r.otherProfile)}
-                  size={44}
-                />
-                <div className="conversation-row-info">
-                  <span className="conversation-row-name">
-                    {conversationTitle(r.conversation, r.otherProfile)}
-                  </span>
-                  <span className="conversation-row-hint">
-                    {r.conversation?.type === 'direct' ? 'Chat 1 a 1' : 'Gruppo'}
-                  </span>
-                </div>
-              </button>
-            ))}
+          <div className="home-section-head">
+            <h3 className="home-section-title">Amici</h3>
+            <Link to="/friends" className="home-manage-friends-link">
+              Cerca / richieste
+            </Link>
           </div>
+
+          {filteredFriends.length === 0 && (
+            <EmptyState
+              title={q ? 'Nessun amico trovato' : 'Nessun amico ancora'}
+              description="Cerca qualcuno per username e mandagli una richiesta."
+            />
+          )}
+
+          {filteredFriends.length > 0 && (
+            <div className="conversation-list">
+              {filteredFriends.map(({ row, profile: p }) => (
+                <div key={row.id} className="conversation-row glass">
+                  <Avatar url={p.avatar_url} label={displayNameOf(p)} size={44} />
+                  <div className="conversation-row-info">
+                    <span className="conversation-row-name">{displayNameOf(p)}</span>
+                    <span className="conversation-row-hint">
+                      {startingWith === p.id ? 'Apertura chat…' : '@' + p.username}
+                    </span>
+                  </div>
+                  <div className="conversation-row-actions">
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      disabled={startingWith === p.id}
+                      onClick={() => openOrStartChat(p.id)}
+                    >
+                      Chat
+                    </button>
+                    <button type="button" className="btn btn-ghost" onClick={() => navigate(`/u/${p.id}`)}>
+                      Profilo
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       )}
-
-      {filter !== 'group' && friendsWithoutChat.length > 0 && (
-        <section className="home-section">
-          <h3 className="home-section-title">Amici</h3>
-          <div className="conversation-list">
-            {friendsWithoutChat.map(({ profile: p }) => (
-              <button
-                key={p.id}
-                type="button"
-                className="conversation-row conversation-row-btn glass"
-                disabled={startingWith === p.id}
-                onClick={() => startDirectChat(p.id)}
-              >
-                <Avatar url={p.avatar_url} label={displayNameOf(p)} size={44} />
-                <div className="conversation-row-info">
-                  <span className="conversation-row-name">{displayNameOf(p)}</span>
-                  <span className="conversation-row-hint">
-                    {startingWith === p.id ? 'Apertura chat…' : 'Inizia una chat'}
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {q &&
-        filteredActive.length === 0 &&
-        filteredInvites.length === 0 &&
-        friendsWithoutChat.length === 0 && (
-          <p className="home-empty-hint">Nessun risultato per "{query.trim()}"</p>
-        )}
     </div>
   )
 }
