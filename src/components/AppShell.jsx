@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
@@ -62,7 +62,9 @@ export default function AppShell() {
       {!isOnline && <div className="app-offline-banner">Sei offline — alcune azioni non funzioneranno.</div>}
 
       <main className="app-content">
-        <Outlet context={{ reopenOnboarding: () => setOnboardingOpen(true), setHeaderTitle }} />
+        <Suspense fallback={<div className="app-route-loading">Caricamento…</div>}>
+          <Outlet context={{ reopenOnboarding: () => setOnboardingOpen(true), setHeaderTitle }} />
+        </Suspense>
       </main>
 
       <OnboardingTour forceOpen={onboardingOpen} onClose={() => setOnboardingOpen(false)} />
