@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../context/useAuth'
 import { supabase } from '../lib/supabase'
-import ThemeToggle from '../components/ThemeToggle'
 import StarsCard from '../components/StarsCard'
 import NicknameBlock from '../components/NicknameBlock'
 import { isPushSupported, getPushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push'
@@ -143,9 +142,6 @@ export default function ProfilePage() {
 
   return (
     <div className="profile-page">
-      <div className="profile-theme-corner">
-        <ThemeToggle />
-      </div>
       <div className="profile-card glass-strong">
         <div className="profile-avatar-section">
           <button

@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import NotificationBell from './NotificationBell'
+import ThemeToggle from './ThemeToggle'
 import Avatar from './Avatar'
 import './AppShell.css'
 
@@ -44,6 +45,7 @@ export default function AppShell() {
           </NavLink>
         </div>
         <div className="app-header-actions">
+          <ThemeToggle />
           <NotificationBell />
           <NavLink to="/profile" className="app-header-avatar" aria-label="Profilo">
             <Avatar url={profile?.avatar_url} label={displayName} size={34} />
