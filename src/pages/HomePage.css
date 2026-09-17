@@ -141,12 +141,17 @@
   font-weight: 600;
   font-size: 14.5px;
   color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+}
+
+.conversation-row-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .conversation-row-rank {

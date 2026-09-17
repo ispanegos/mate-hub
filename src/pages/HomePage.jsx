@@ -18,6 +18,29 @@ function displayNameOf(profile) {
   return full || profile.username
 }
 
+function ChatIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+      <path
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M4 5.5h16v10H9l-4 3.5v-3.5H4v-10Z"
+      />
+    </svg>
+  )
+}
+
+function PersonIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+      <circle cx="12" cy="8.5" r="3.2" stroke="currentColor" strokeWidth="1.7" />
+      <path stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" d="M5 19c0-3.5 3-6 7-6s7 2.5 7 6" />
+    </svg>
+  )
+}
+
 const FILTERS = [
   { key: 'friends', label: 'Amici' },
   { key: 'group', label: 'Gruppi' },
@@ -276,7 +299,7 @@ export default function HomePage() {
                     <Avatar url={p.avatar_url} label={displayNameOf(p)} size={44} />
                     <div className="conversation-row-info">
                       <span className="conversation-row-name">
-                        {displayNameOf(p)}
+                        <span className="conversation-row-name-text">{displayNameOf(p)}</span>
                         <span className="conversation-row-rank">
                           ⭐ {overallScores[p.id] != null ? overallScores[p.id].toFixed(1) : 'N/V'}
                         </span>
@@ -294,7 +317,7 @@ export default function HomePage() {
                         disabled={startingWith === p.id}
                         onClick={() => openOrStartChat(p.id)}
                       >
-                        💬
+                        <ChatIcon />
                         {unread > 0 && (
                           <span className="conversation-row-unread conversation-row-unread-dot">
                             {unread > 9 ? '9+' : unread}
@@ -308,7 +331,7 @@ export default function HomePage() {
                         title="Profilo"
                         onClick={() => navigate(`/u/${p.id}`)}
                       >
-                        👤
+                        <PersonIcon />
                       </button>
                     </div>
                   </div>
