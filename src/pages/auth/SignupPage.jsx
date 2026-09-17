@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/useAuth'
+import { friendlyError } from '../../lib/friendlyError'
 import AuthLayout from './AuthLayout'
 import PasswordField from '../../components/PasswordField'
 
@@ -43,7 +44,7 @@ export default function SignupPage() {
         setSuccess(true)
       }
     } catch (err) {
-      setError(err.message || 'Registrazione non riuscita. Riprova.')
+      setError(friendlyError(err, 'Registrazione non riuscita. Riprova.'))
     } finally {
       setSubmitting(false)
     }

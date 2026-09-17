@@ -5,9 +5,18 @@ import StarsCard from '../components/StarsCard'
 import NicknameBlock from '../components/NicknameBlock'
 import { isPushSupported, getPushSubscription, subscribeToPush, unsubscribeFromPush } from '../lib/push'
 import { compressImage } from '../lib/imageCompress'
+import { unblockUser } from '../lib/blocking'
+import { friendlyError } from '../lib/friendlyError'
+import Avatar from '../components/Avatar'
 import './ProfilePage.css'
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
+
+function displayNameOf(profile) {
+  if (!profile) return 'Utente'
+  const full = [profile.first_name, profile.last_name].filter(Boolean).join(' ')
+  return full || profile.username
+}
 
 function LogoutIcon() {
   return (
@@ -52,11 +61,40 @@ export default function ProfilePage() {
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushBusy, setPushBusy] = useState(false)
   const [pushError, setPushError] = useState(null)
+  const [blockedUsers, setBlockedUsers] = useState([])
+  const [unblockingId, setUnblockingId] = useState(null)
 
   useEffect(() => {
     if (!isPushSupported()) return
     getPushSubscription().then((sub) => setPushEnabled(!!sub))
   }, [])
+
+  useEffect(() => {
+    if (!user) return
+    let active = true
+    supabase
+      .from('blocked_users')
+      .select('blocked_id, blocked:blocked_id(id, username, first_name, last_name, avatar_url)')
+      .eq('blocker_id', user.id)
+      .then(({ data }) => {
+        if (active) setBlockedUsers(data || [])
+      })
+    return () => {
+      active = false
+    }
+  }, [user])
+
+  const handleUnblock = async (blockedId) => {
+    setUnblockingId(blockedId)
+    try {
+      await unblockUser(user.id, blockedId)
+      setBlockedUsers((prev) => prev.filter((b) => b.blocked_id !== blockedId))
+    } catch (err) {
+      setError(friendlyError(err))
+    } finally {
+      setUnblockingId(null)
+    }
+  }
 
   const togglePush = async () => {
     setPushBusy(true)
@@ -70,7 +108,7 @@ export default function ProfilePage() {
         setPushEnabled(true)
       }
     } catch (err) {
-      setPushError(err.message || 'Operazione non riuscita')
+      setPushError(friendlyError(err, 'Operazione non riuscita'))
     } finally {
       setPushBusy(false)
     }
@@ -117,7 +155,7 @@ export default function ProfilePage() {
       await updateProfile({ avatar_url: avatarUrl })
       setAvatarPreview(avatarUrl)
     } catch (err) {
-      setError(err.message || 'Caricamento immagine non riuscito')
+      setError(friendlyError(err, 'Caricamento immagine non riuscito'))
       setAvatarPreview(profile?.avatar_url || null)
     } finally {
       setUploading(false)
@@ -136,7 +174,7 @@ export default function ProfilePage() {
       })
       setSuccess(true)
     } catch (err) {
-      setError(err.message || 'Salvataggio non riuscito')
+      setError(friendlyError(err, 'Salvataggio non riuscito'))
     } finally {
       setSaving(false)
     }
@@ -231,6 +269,28 @@ export default function ProfilePage() {
                   ? 'Disattiva notifiche push'
                   : 'Attiva notifiche push'}
             </button>
+          </div>
+        )}
+
+        {blockedUsers.length > 0 && (
+          <div className="field">
+            <label>Utenti bloccati</label>
+            <div className="profile-blocked-list">
+              {blockedUsers.map((b) => (
+                <div key={b.blocked_id} className="profile-blocked-row">
+                  <Avatar url={b.blocked?.avatar_url} label={displayNameOf(b.blocked)} size={32} />
+                  <span className="profile-blocked-name">{displayNameOf(b.blocked)}</span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={unblockingId === b.blocked_id}
+                    onClick={() => handleUnblock(b.blocked_id)}
+                  >
+                    Sblocca
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

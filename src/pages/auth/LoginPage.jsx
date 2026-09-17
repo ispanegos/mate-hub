@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/useAuth'
+import { friendlyError } from '../../lib/friendlyError'
 import AuthLayout from './AuthLayout'
 import PasswordField from '../../components/PasswordField'
 
@@ -20,7 +21,7 @@ export default function LoginPage() {
       await signIn({ email, password })
       navigate('/', { replace: true })
     } catch (err) {
-      setError(err.message || 'Accesso non riuscito. Riprova.')
+      setError(friendlyError(err, 'Accesso non riuscito. Riprova.'))
     } finally {
       setSubmitting(false)
     }

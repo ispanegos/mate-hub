@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/useAuth'
+import { friendlyError } from '../../lib/friendlyError'
 import AuthLayout from './AuthLayout'
 
 export default function ForgotPasswordPage() {
@@ -18,7 +19,7 @@ export default function ForgotPasswordPage() {
       await resetPassword(email)
       setSuccess(true)
     } catch (err) {
-      setError(err.message || 'Invio non riuscito. Riprova.')
+      setError(friendlyError(err, 'Invio non riuscito. Riprova.'))
     } finally {
       setSubmitting(false)
     }

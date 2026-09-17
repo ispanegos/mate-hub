@@ -1,8 +1,10 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import NotificationBell from './NotificationBell'
 import ThemeToggle from './ThemeToggle'
 import Avatar from './Avatar'
+import OnboardingTour from './OnboardingTour'
 import './AppShell.css'
 
 function BackIcon() {
@@ -25,6 +27,7 @@ export default function AppShell() {
   const location = useLocation()
   const navigate = useNavigate()
   const isHome = location.pathname === '/'
+  const isOnline = useOnlineStatus()
 
   return (
     <div className="app-shell">
@@ -53,9 +56,13 @@ export default function AppShell() {
         </div>
       </header>
 
+      {!isOnline && <div className="app-offline-banner">Sei offline — alcune azioni non funzioneranno.</div>}
+
       <main className="app-content">
         <Outlet />
       </main>
+
+      <OnboardingTour />
     </div>
   )
 }

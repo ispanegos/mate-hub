@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/useAuth'
+import { friendlyError } from '../../lib/friendlyError'
 import AuthLayout from './AuthLayout'
 
 export default function ResetPasswordPage() {
@@ -29,7 +30,7 @@ export default function ResetPasswordPage() {
       await updatePassword(password)
       navigate('/', { replace: true })
     } catch (err) {
-      setError(err.message || 'Aggiornamento non riuscito. Riprova.')
+      setError(friendlyError(err, 'Aggiornamento non riuscito. Riprova.'))
     } finally {
       setSubmitting(false)
     }

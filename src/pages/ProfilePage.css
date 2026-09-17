@@ -96,6 +96,28 @@
   color: var(--ink-soft);
 }
 
+.profile-blocked-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-blocked-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-blocked-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .profile-readonly-row {
   display: flex;
   align-items: center;

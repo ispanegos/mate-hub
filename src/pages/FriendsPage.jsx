@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { supabase } from '../lib/supabase'
 import { useFriends } from '../hooks/useFriends'
+import { friendlyError } from '../lib/friendlyError'
 import Avatar from '../components/Avatar'
 import EmptyState from '../components/EmptyState'
 import './FriendsPage.css'
@@ -22,12 +23,29 @@ export default function FriendsPage() {
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState(null)
   const [pendingIds, setPendingIds] = useState(() => new Set())
+  const [blockedIds, setBlockedIds] = useState(() => new Set())
+
+  useEffect(() => {
+    if (!user) return
+    let active = true
+    supabase
+      .from('blocked_users')
+      .select('blocked_id')
+      .eq('blocker_id', user.id)
+      .then(({ data }) => {
+        if (active) setBlockedIds(new Set((data || []).map((b) => b.blocked_id)))
+      })
+    return () => {
+      active = false
+    }
+  }, [user])
 
   const knownIds = new Set([
     user?.id,
     ...friends.map((f) => f.profile?.id),
     ...incoming.map((f) => f.profile?.id),
     ...outgoing.map((f) => f.profile?.id),
+    ...blockedIds,
   ])
 
   const runSearch = async (event) => {
@@ -67,7 +85,7 @@ export default function FriendsPage() {
 
       setResults(combined.filter((p) => !knownIds.has(p.id)))
     } catch (err) {
-      setSearchError(err.message)
+      setSearchError(friendlyError(err))
     } finally {
       setSearching(false)
     }
@@ -78,6 +96,8 @@ export default function FriendsPage() {
     try {
       await sendRequest(targetId)
       setResults((prev) => prev.filter((p) => p.id !== targetId))
+    } catch (err) {
+      setSearchError(friendlyError(err))
     } finally {
       setPendingIds((prev) => {
         const next = new Set(prev)

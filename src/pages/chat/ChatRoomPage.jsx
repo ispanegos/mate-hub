@@ -4,6 +4,7 @@ import { useAuth } from '../../context/useAuth'
 import { supabase } from '../../lib/supabase'
 import { useConversations, conversationTitle } from '../../hooks/useConversations'
 import { useGroupAvatarUrl } from '../../hooks/useGroupAvatarUrl'
+import { useOnlineStatus } from '../../hooks/useOnlineStatus'
 import { notifyUsers } from '../../lib/notifications'
 import { compressImage } from '../../lib/imageCompress'
 import Avatar from '../../components/Avatar'
@@ -142,6 +143,7 @@ export default function ChatRoomPage() {
   const { id } = useParams()
   const { user } = useAuth()
   const navigate = useNavigate()
+  const isOnline = useOnlineStatus()
 
   const [conversation, setConversation] = useState(null)
   const [myStatus, setMyStatus] = useState(null)
@@ -863,7 +865,30 @@ export default function ChatRoomPage() {
 
   const openProposalOfType = (type) => proposals.find((p) => p.type === type)
 
+  const PROPOSAL_COOLDOWN_MS = 30 * 60 * 1000
+
+  const checkProposalCooldown = async (type) => {
+    const { data } = await supabase
+      .from('conversation_proposals')
+      .select('resolved_at')
+      .eq('conversation_id', id)
+      .eq('type', type)
+      .not('resolved_at', 'is', null)
+      .order('resolved_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (!data?.resolved_at) return true
+    const elapsed = Date.now() - new Date(data.resolved_at).getTime()
+    if (elapsed < PROPOSAL_COOLDOWN_MS) {
+      const minutesLeft = Math.ceil((PROPOSAL_COOLDOWN_MS - elapsed) / 60000)
+      setError(`Questo tipo di proposta è stata decisa da poco. Aspetta ancora ${minutesLeft} minuti prima di riproporla.`)
+      return false
+    }
+    return true
+  }
+
   const createProposal = async (type, newLabel, newValue) => {
+    if (!(await checkProposalCooldown(type))) return
     const defaults = {
       rename: {
         label: `Mantieni "${conversation.name || 'Gruppo senza nome'}"`,
@@ -2187,6 +2212,7 @@ export default function ChatRoomPage() {
               className="chat-icon-btn"
               onClick={() => fileInputRef.current?.click()}
               aria-label="Allega immagine o video"
+              disabled={!isOnline}
             >
               <ImageIcon />
             </button>
@@ -2195,6 +2221,7 @@ export default function ChatRoomPage() {
               className={`chat-icon-btn${recording ? ' is-recording' : ''}`}
               onClick={toggleRecording}
               aria-label="Registra audio"
+              disabled={!isOnline}
             >
               <MicIcon active={recording} />
             </button>
@@ -2202,11 +2229,16 @@ export default function ChatRoomPage() {
               ref={composerInputRef}
               type="text"
               className="chat-composer-input"
-              placeholder="Scrivi un messaggio…"
+              placeholder={isOnline ? 'Scrivi un messaggio…' : 'Sei offline…'}
               value={text}
               onChange={handleTextChange}
+              disabled={!isOnline}
             />
-            <button type="submit" className="chat-icon-btn chat-send-btn" disabled={sending || !text.trim()}>
+            <button
+              type="submit"
+              className="chat-icon-btn chat-send-btn"
+              disabled={sending || !text.trim() || !isOnline}
+            >
               <SendIcon />
             </button>
           </form>
