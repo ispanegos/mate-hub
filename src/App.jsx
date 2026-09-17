@@ -13,6 +13,7 @@ import UserProfilePage from './pages/UserProfilePage'
 import NewConversationPage from './pages/NewConversationPage'
 import ChatRoomPage from './pages/chat/ChatRoomPage'
 import RateEventPage from './pages/events/RateEventPage'
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
       </Route>
 
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/privacy" element={<PrivacyPolicyPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>

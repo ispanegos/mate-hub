@@ -176,3 +176,20 @@
 .profile-logout:hover {
   background: rgba(192, 57, 43, 0.08);
 }
+
+.profile-privacy-link {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent-text);
+}
+
+.profile-delete-account {
+  background: var(--danger);
+  color: #fff;
+  border: none;
+  margin-top: -4px;
+}
+
+.profile-delete-account:hover {
+  opacity: 0.9;
+}

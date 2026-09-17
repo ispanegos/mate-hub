@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { supabase } from '../lib/supabase'
 import StarsCard from '../components/StarsCard'
@@ -7,6 +8,7 @@ import { isPushSupported, getPushSubscription, subscribeToPush, unsubscribeFromP
 import { compressImage } from '../lib/imageCompress'
 import { unblockUser } from '../lib/blocking'
 import { friendlyError } from '../lib/friendlyError'
+import { exportMyData } from '../lib/dataExport'
 import Avatar from '../components/Avatar'
 import './ProfilePage.css'
 
@@ -49,6 +51,7 @@ function CameraIcon() {
 
 export default function ProfilePage() {
   const { user, profile, signOut, updateProfile } = useAuth()
+  const navigate = useNavigate()
   const fileInputRef = useRef(null)
 
   const [firstName, setFirstName] = useState(profile?.first_name || '')
@@ -63,6 +66,8 @@ export default function ProfilePage() {
   const [pushError, setPushError] = useState(null)
   const [blockedUsers, setBlockedUsers] = useState([])
   const [unblockingId, setUnblockingId] = useState(null)
+  const [exporting, setExporting] = useState(false)
+  const [deletingAccount, setDeletingAccount] = useState(false)
 
   useEffect(() => {
     if (!isPushSupported()) return
@@ -93,6 +98,39 @@ export default function ProfilePage() {
       setError(friendlyError(err))
     } finally {
       setUnblockingId(null)
+    }
+  }
+
+  const handleExportData = async () => {
+    setExporting(true)
+    setError(null)
+    try {
+      await exportMyData(user.id)
+    } catch (err) {
+      setError(friendlyError(err, 'Esportazione non riuscita'))
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    const typed = window.prompt(
+      `Questa azione è definitiva e non si può annullare. Digita il tuo username "${profile?.username}" per confermare l'eliminazione dell'account.`,
+    )
+    if (typed !== profile?.username) {
+      if (typed !== null) setError('Username non corrispondente, eliminazione annullata.')
+      return
+    }
+    setDeletingAccount(true)
+    setError(null)
+    try {
+      const { error: err } = await supabase.rpc('delete_my_account')
+      if (err) throw err
+      await signOut()
+      navigate('/login', { replace: true })
+    } catch (err) {
+      setError(friendlyError(err, 'Eliminazione account non riuscita'))
+      setDeletingAccount(false)
     }
   }
 
@@ -294,9 +332,28 @@ export default function ProfilePage() {
           </div>
         )}
 
+        <div className="field">
+          <label>Dati e privacy</label>
+          <Link to="/privacy" className="profile-privacy-link">
+            Leggi l'informativa sulla privacy →
+          </Link>
+          <button type="button" className="btn btn-secondary btn-block" disabled={exporting} onClick={handleExportData}>
+            {exporting ? 'Esportazione…' : 'Esporta i miei dati'}
+          </button>
+        </div>
+
         <button type="button" className="btn btn-secondary btn-block profile-logout" onClick={signOut}>
           <LogoutIcon />
           Esci
+        </button>
+
+        <button
+          type="button"
+          className="btn btn-block profile-delete-account"
+          disabled={deletingAccount}
+          onClick={handleDeleteAccount}
+        >
+          {deletingAccount ? 'Eliminazione…' : 'Elimina il mio account'}
         </button>
       </div>
 

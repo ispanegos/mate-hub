@@ -132,6 +132,14 @@ export default function SignupPage() {
         <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
           {submitting ? 'Creazione account…' : 'Registrati'}
         </button>
+
+        <p className="auth-privacy-hint">
+          Registrandoti accetti la nostra{' '}
+          <Link to="/privacy" target="_blank" rel="noopener noreferrer">
+            informativa sulla privacy
+          </Link>
+          .
+        </p>
       </form>
     </AuthLayout>
   )
