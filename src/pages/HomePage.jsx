@@ -29,7 +29,7 @@ export default function HomePage() {
   const { friends } = useFriends()
   const [busyId, setBusyId] = useState(null)
   const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState('group')
+  const [filter, setFilter] = useState('friends')
   const [startingWith, setStartingWith] = useState(null)
 
   const active = items.filter((r) => r.status === 'accepted')
@@ -115,7 +115,7 @@ export default function HomePage() {
   }
 
   const nothingToShow =
-    !loading && active.length === 0 && invites.length === 0 && friends.length === 0 && filter === 'group' && !q
+    !loading && active.length === 0 && invites.length === 0 && friends.length === 0 && filter === 'friends' && !q
 
   if (nothingToShow) {
     return (
