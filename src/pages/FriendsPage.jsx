@@ -40,16 +40,23 @@ export default function FriendsPage() {
     setSearching(true)
     setSearchError(null)
     try {
-      const safeQuery = q.replace(/[%,()]/g, ' ').trim()
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .or(`username.ilike.%${safeQuery}%,first_name.ilike.%${safeQuery}%,last_name.ilike.%${safeQuery}%`)
-        .neq('id', user.id)
-        .limit(15)
-      if (error) throw error
+      const [byUsername, byFirstName, byLastName] = await Promise.all([
+        supabase.from('profiles').select('*').ilike('username', `%${q}%`).neq('id', user.id).limit(15),
+        supabase.from('profiles').select('*').ilike('first_name', `%${q}%`).neq('id', user.id).limit(15),
+        supabase.from('profiles').select('*').ilike('last_name', `%${q}%`).neq('id', user.id).limit(15),
+      ])
+      if (byUsername.error) throw byUsername.error
+      if (byFirstName.error) throw byFirstName.error
+      if (byLastName.error) throw byLastName.error
 
-      let combined = data || []
+      const seen = new Set()
+      let combined = [...(byUsername.data || []), ...(byFirstName.data || []), ...(byLastName.data || [])].filter(
+        (p) => {
+          if (seen.has(p.id)) return false
+          seen.add(p.id)
+          return true
+        },
+      )
 
       if (q.includes('@')) {
         const { data: byEmail } = await supabase.rpc('find_profile_by_email', { p_email: q })
