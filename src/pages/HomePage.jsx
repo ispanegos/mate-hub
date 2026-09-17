@@ -18,8 +18,8 @@ function displayNameOf(profile) {
 }
 
 const FILTERS = [
-  { key: 'group', label: 'Gruppi' },
   { key: 'friends', label: 'Amici' },
+  { key: 'group', label: 'Gruppi' },
 ]
 
 export default function HomePage() {
