@@ -55,12 +55,12 @@
 
 .notification-panel {
   position: fixed;
-  top: 50%;
+  top: calc(var(--app-header-h) + 12px);
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   z-index: 56;
   width: min(360px, calc(100vw - 32px));
-  max-height: min(70vh, 480px);
+  max-height: min(70vh, calc(100dvh - var(--app-header-h) - 24px));
   display: flex;
   flex-direction: column;
   border-radius: var(--r-panel);
