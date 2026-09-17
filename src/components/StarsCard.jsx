@@ -32,15 +32,6 @@ export default function StarsCard({ userId }) {
 
   return (
     <div className="stars-card glass">
-      <button
-        type="button"
-        className="stars-info-btn"
-        onClick={() => setShowInfo(true)}
-        aria-label="Cosa sono le statistiche STARS"
-      >
-        ⓘ
-      </button>
-
       <div className="stars-overall">
         <span className="stars-overall-value">
           {profile.overall === null ? 'N/V' : profile.overall.toFixed(1)}
@@ -49,6 +40,15 @@ export default function StarsCard({ userId }) {
       </div>
 
       <RadarChart perStat={profile.perStat} />
+
+      <button
+        type="button"
+        className="stars-info-btn"
+        onClick={() => setShowInfo(true)}
+        aria-label="Cosa sono le statistiche STARS"
+      >
+        ⓘ Cosa sono le statistiche?
+      </button>
 
       <div className="stars-rows">
         {profile.perStat.map((s) => (

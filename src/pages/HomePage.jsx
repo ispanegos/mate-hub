@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { notifyUsers } from '../lib/notifications'
 import { useConversations, conversationTitle } from '../hooks/useConversations'
 import { useFriends } from '../hooks/useFriends'
+import { useOverallStars } from '../hooks/useOverallStars'
 import ConversationAvatar from '../components/ConversationAvatar'
 import Avatar from '../components/Avatar'
 import EmptyState from '../components/EmptyState'
@@ -51,6 +52,8 @@ export default function HomePage() {
   const filteredFriends = friends
     .filter(({ profile: p }) => p)
     .filter(({ profile: p }) => !q || displayNameOf(p).toLowerCase().includes(q))
+
+  const overallScores = useOverallStars(filteredFriends.map(({ profile: p }) => p.id))
 
   const respondInvite = async (conversationId, accept) => {
     setBusyId(conversationId)
@@ -260,7 +263,12 @@ export default function HomePage() {
                 <div key={row.id} className="conversation-row glass">
                   <Avatar url={p.avatar_url} label={displayNameOf(p)} size={44} />
                   <div className="conversation-row-info">
-                    <span className="conversation-row-name">{displayNameOf(p)}</span>
+                    <span className="conversation-row-name">
+                      {displayNameOf(p)}
+                      <span className="conversation-row-rank">
+                        ⭐ {overallScores[p.id] != null ? overallScores[p.id].toFixed(1) : 'N/V'}
+                      </span>
+                    </span>
                     <span className="conversation-row-hint">
                       {startingWith === p.id ? 'Apertura chat…' : '@' + p.username}
                     </span>
