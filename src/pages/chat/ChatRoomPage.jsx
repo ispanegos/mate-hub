@@ -795,9 +795,14 @@ export default function ChatRoomPage() {
   }
 
   const castProposalVote = async (proposalId, optionId) => {
-    await supabase
+    const { error: voteErr } = await supabase
       .from('conversation_proposal_votes')
       .upsert({ proposal_id: proposalId, option_id: optionId, voter_id: user.id }, { onConflict: 'proposal_id,voter_id' })
+    if (voteErr) {
+      setError(voteErr.message)
+      loadProposals()
+      return
+    }
 
     const { data: conv } = await supabase.from('conversations').select('*').eq('id', id).maybeSingle()
     if (!conv) {

@@ -43,7 +43,7 @@ export default function HomePage() {
 
   const directConvByFriendId = {}
   items.forEach((r) => {
-    if (r.conversation?.type === 'direct' && r.otherProfile?.id) {
+    if (r.conversation?.type === 'direct' && r.otherProfile?.id && r.status !== 'declined') {
       directConvByFriendId[r.otherProfile.id] = r.conversation_id
     }
   })
