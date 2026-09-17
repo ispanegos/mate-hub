@@ -63,6 +63,14 @@
   background: rgba(255, 175, 0, 0.12);
 }
 
+.app-tab-bell {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
 .app-tab-avatar {
   flex: 0 0 auto;
   padding: 0 6px;

@@ -52,7 +52,7 @@ export default function NotificationBell() {
     <div className="notification-bell" ref={panelRef}>
       <button
         type="button"
-        className="notification-bell-btn glass"
+        className={`notification-bell-btn${open ? ' is-active' : ''}`}
         onClick={() => setOpen((v) => !v)}
         aria-label="Notifiche"
       >

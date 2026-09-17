@@ -211,6 +211,8 @@ export default function ChatRoomPage() {
   const [newFolderName, setNewFolderName] = useState('')
   const [viewerMedia, setViewerMedia] = useState(null)
   const [groupAvatarSignedUrl, setGroupAvatarSignedUrl] = useState(null)
+  const [moveMenuFor, setMoveMenuFor] = useState(null)
+  const [moveNewFolderName, setMoveNewFolderName] = useState('')
 
   useEffect(() => {
     if (!viewerMedia) return
@@ -879,23 +881,58 @@ export default function ChatRoomPage() {
     if (folderId) {
       await supabase.from('media_folders').insert({ media_id: mediaId, folder_id: folderId })
     }
+    setMoveMenuFor(null)
+    loadArchive()
+  }
+
+  const createFolderAndMove = async (mediaId) => {
+    const value = moveNewFolderName.trim()
+    if (!value) return
+    const { data: folder, error: err } = await supabase
+      .from('folders')
+      .insert({ conversation_id: id, name: value, created_by: user.id })
+      .select()
+      .single()
+    if (err) {
+      setError(err.message)
+      return
+    }
+    setMoveNewFolderName('')
+    await supabase.from('media_folders').delete().eq('media_id', mediaId)
+    await supabase.from('media_folders').insert({ media_id: mediaId, folder_id: folder.id })
+    setMoveMenuFor(null)
     loadArchive()
   }
 
   const downloadMedia = async (media) => {
-    const { data, error: err } = await supabase.storage
-      .from('chat-media')
-      .createSignedUrl(media.url, 60, { download: true })
+    const { data, error: err } = await supabase.storage.from('chat-media').createSignedUrl(media.url, 60)
     if (err || !data) {
       setError(err?.message || 'Download non riuscito')
       return
     }
-    const a = document.createElement('a')
-    a.href = data.signedUrl
-    a.download = ''
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
+    try {
+      const res = await fetch(data.signedUrl)
+      const blob = await res.blob()
+      const ext = media.url.split('.').pop() || (media.type === 'video' ? 'mp4' : media.type === 'audio' ? 'm4a' : 'jpg')
+      const filename = `mate-hub-${media.id}.${ext}`
+      const file = new File([blob], filename, { type: blob.type })
+
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file] })
+        return
+      }
+
+      const objectUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = objectUrl
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(objectUrl)
+    } catch (err) {
+      if (err?.name !== 'AbortError') setError('Download non riuscito')
+    }
   }
 
   const deleteMedia = async (media) => {
@@ -1778,7 +1815,7 @@ export default function ChatRoomPage() {
             {visibleMedia.map((m) => (
               <div key={m.id} className="chat-media-tile">
                 <div
-                  className="chat-media-open"
+                  className="chat-media-open chat-media-thumb"
                   role="button"
                   tabIndex={0}
                   onClick={() => setViewerMedia(m)}
@@ -1787,33 +1824,77 @@ export default function ChatRoomPage() {
                   <MediaBubble media={m} />
                 </div>
                 <div className="chat-media-actions">
-                  <button type="button" className="chat-media-action" onClick={() => downloadMedia(m)}>
-                    ⬇️ Download
-                  </button>
-                  {folders.length > 0 ? (
-                    <select
-                      className="chat-media-action chat-media-move-select"
-                      value={(mediaFolderMap[m.id] || [])[0] || ''}
-                      onChange={(e) => moveToFolder(m.id, e.target.value || null)}
-                    >
-                      <option value="">📁 Sposta: nessuna</option>
-                      {folders.map((f) => (
-                        <option key={f.id} value={f.id}>
-                          📁 Sposta: {f.name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <span className="chat-media-action chat-media-action-disabled">📁 Nessuna cartella</span>
-                  )}
                   <button
                     type="button"
-                    className="chat-media-action chat-media-action-danger"
+                    className="chat-media-action-icon"
+                    aria-label="Download"
+                    title="Download"
+                    onClick={() => downloadMedia(m)}
+                  >
+                    ⬇️
+                  </button>
+
+                  <div className="chat-media-move">
+                    <button
+                      type="button"
+                      className="chat-media-action-move"
+                      onClick={() => setMoveMenuFor(moveMenuFor === m.id ? null : m.id)}
+                    >
+                      SPOSTA
+                    </button>
+                    {moveMenuFor === m.id && (
+                      <>
+                        <div className="chat-media-move-backdrop" onClick={() => setMoveMenuFor(null)} />
+                        <div className="chat-media-move-menu glass-strong">
+                          <button
+                            type="button"
+                            className="chat-media-move-option"
+                            onClick={() => moveToFolder(m.id, null)}
+                          >
+                            Nessuna cartella
+                          </button>
+                          {folders.map((f) => (
+                            <button
+                              key={f.id}
+                              type="button"
+                              className="chat-media-move-option"
+                              onClick={() => moveToFolder(m.id, f.id)}
+                            >
+                              📁 {f.name}
+                            </button>
+                          ))}
+                          <div className="chat-media-move-create">
+                            <input
+                              type="text"
+                              className="input"
+                              placeholder="Crea cartella…"
+                              value={moveNewFolderName}
+                              onChange={(e) => setMoveNewFolderName(e.target.value)}
+                            />
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              disabled={!moveNewFolderName.trim()}
+                              onClick={() => createFolderAndMove(m.id)}
+                            >
+                              + Crea cartella
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="chat-media-action-icon chat-media-action-danger"
+                    aria-label="Elimina"
+                    title="Elimina"
                     onClick={() => {
                       if (window.confirm('Eliminare definitivamente questo media?')) deleteMedia(m)
                     }}
                   >
-                    🗑 Elimina
+                    🗑
                   </button>
                 </div>
               </div>

@@ -45,7 +45,6 @@ export default function AppShell() {
 
   return (
     <div className="app-shell">
-      <NotificationBell />
       <main className="app-content">
         <Outlet />
       </main>
@@ -62,6 +61,10 @@ export default function AppShell() {
             <span>{item.label}</span>
           </NavLink>
         ))}
+
+        <div className="app-tab-bell">
+          <NotificationBell />
+        </div>
 
         <NavLink
           to="/profile"
