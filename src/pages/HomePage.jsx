@@ -274,14 +274,22 @@ export default function HomePage() {
                   <div className="conversation-row-actions">
                     <button
                       type="button"
-                      className="btn btn-primary"
+                      className="conversation-row-icon-btn"
+                      aria-label="Chat"
+                      title="Chat"
                       disabled={startingWith === p.id}
                       onClick={() => openOrStartChat(p.id)}
                     >
-                      Chat
+                      💬
                     </button>
-                    <button type="button" className="btn btn-ghost" onClick={() => navigate(`/u/${p.id}`)}>
-                      Profilo
+                    <button
+                      type="button"
+                      className="conversation-row-icon-btn"
+                      aria-label="Profilo"
+                      title="Profilo"
+                      onClick={() => navigate(`/u/${p.id}`)}
+                    >
+                      👤
                     </button>
                   </div>
                 </div>

@@ -175,3 +175,17 @@
   min-height: 38px;
   font-size: 13px;
 }
+
+.conversation-row-icon-btn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  font-size: 16px;
+  cursor: pointer;
+}
