@@ -39,12 +39,17 @@ export default function StarsCard({ userId }) {
 
       {badges.length > 0 && (
         <div className="stars-badges">
-          {badges.map((key) => {
-            const def = BADGE_DEFS[key]
+          {badges.map((b) => {
+            const def = BADGE_DEFS[b.badge_key]
             if (!def) return null
             return (
-              <span key={key} className="stars-badge" title={def.description}>
+              <span
+                key={`${b.badge_key}-${b.conversation_id}`}
+                className="stars-badge"
+                title={`${def.description}${b.conversation_name ? ` (${b.conversation_name})` : ''}`}
+              >
                 {def.emoji} {def.label}
+                {b.conversation_name && <span className="stars-badge-group"> · {b.conversation_name}</span>}
               </span>
             )
           })}

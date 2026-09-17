@@ -36,6 +36,11 @@
   padding: 4px 10px;
 }
 
+.stars-badge-group {
+  font-weight: 500;
+  opacity: 0.8;
+}
+
 .stars-info-btn {
   border: none;
   background: var(--glass-bg);
