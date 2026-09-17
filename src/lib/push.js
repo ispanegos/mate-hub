@@ -19,6 +19,9 @@ export async function getPushSubscription() {
 
 export async function subscribeToPush(userId) {
   if (!isPushSupported()) throw new Error('Le notifiche push non sono supportate su questo browser')
+  if (!import.meta.env.VITE_VAPID_PUBLIC_KEY) {
+    throw new Error('Notifiche push non configurate su questo deploy (manca VITE_VAPID_PUBLIC_KEY).')
+  }
 
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') throw new Error('Permesso notifiche negato')
