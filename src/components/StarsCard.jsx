@@ -27,11 +27,12 @@ export default function StarsCard({ userId }) {
     }
   }, [userId])
 
-  if (loading) return <p className="profile-hint">Caricamento STARS…</p>
+  if (loading) return <p className="profile-hint">Caricamento pagella…</p>
   if (!profile) return null
 
   return (
     <div className="stars-card glass">
+      <p className="stars-card-title">Pagella</p>
       <div className="stars-overall">
         <span className="stars-overall-value">
           {profile.overall === null ? 'N/V' : profile.overall.toFixed(1)}
@@ -45,7 +46,7 @@ export default function StarsCard({ userId }) {
         type="button"
         className="stars-info-btn"
         onClick={() => setShowInfo(true)}
-        aria-label="Cosa sono le statistiche STARS"
+        aria-label="Cosa sono le statistiche della pagella"
       >
         ⓘ Cosa sono le statistiche?
       </button>
@@ -70,7 +71,7 @@ export default function StarsCard({ userId }) {
           <div className="stars-info-backdrop" onClick={() => setShowInfo(false)} />
           <div className="stars-info-panel glass-strong">
             <div className="stars-info-head">
-              <span>Le statistiche STARS</span>
+              <span>Le statistiche della pagella</span>
               <button type="button" className="stars-info-close" onClick={() => setShowInfo(false)}>
                 ✕
               </button>

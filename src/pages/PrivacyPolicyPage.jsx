@@ -30,14 +30,14 @@ export default function PrivacyPolicyPage() {
           <li>Email e password (gestite da Supabase Auth, la password non è mai visibile a nessuno in chiaro)</li>
           <li>Username, nome e cognome (facoltativi), foto profilo</li>
           <li>Messaggi, foto, video e audio che invii nelle chat</li>
-          <li>Eventi e spese che crei o a cui partecipi, valutazioni STARS date e ricevute</li>
+          <li>Eventi e spese che crei o a cui partecipi, voti della pagella dati e ricevuti</li>
           <li>Se attivi le notifiche push: un identificativo tecnico del tuo browser/dispositivo, non il tuo nome</li>
         </ul>
 
         <h2>Perché li usiamo</h2>
         <p>
           Solo per far funzionare l'app: farti accedere, farti chattare con i tuoi amici, organizzare eventi e
-          spese di gruppo, calcolare le tue statistiche STARS, mandarti notifiche sulle cose che ti riguardano.
+          spese di gruppo, calcolare la tua pagella, mandarti notifiche sulle cose che ti riguardano.
           Non vendiamo né condividiamo i tuoi dati con nessuno a scopo pubblicitario. Non c'è tracciamento
           pubblicitario di nessun tipo.
         </p>

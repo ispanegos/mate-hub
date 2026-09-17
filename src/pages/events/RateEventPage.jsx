@@ -152,7 +152,7 @@ export default function RateEventPage() {
           userIds: ratedUserIds,
           actorId: user.id,
           type: 'stars_vote',
-          title: 'Nuova valutazione STARS',
+          title: 'Nuova valutazione per la tua pagella',
           body: `Hai ricevuto una valutazione per "${event?.name}"`,
           link: `/profile`,
         })
@@ -179,7 +179,7 @@ export default function RateEventPage() {
         <div className="rate-event-done glass-strong">
           <span className="rate-event-done-emoji">⭐</span>
           <h2>Valutazioni inviate</h2>
-          <p className="profile-hint">Grazie! I voti contribuiscono alle STARS di {participants.length} persone.</p>
+          <p className="profile-hint">Grazie! I voti contribuiscono alla pagella di {participants.length} persone.</p>
           <button
             type="button"
             className="btn btn-primary btn-block"

@@ -10,6 +10,15 @@
   border-radius: var(--r-modal);
 }
 
+.stars-card-title {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  align-self: flex-start;
+}
+
 .stars-info-btn {
   border: none;
   background: var(--glass-bg);
