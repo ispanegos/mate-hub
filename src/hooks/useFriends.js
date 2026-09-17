@@ -93,6 +93,14 @@ export function useFriends() {
       .update({ status: accept ? 'accepted' : 'declined' })
       .eq('id', rowId)
     if (error) throw error
+    if (row) {
+      await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('user_id', user.id)
+        .eq('actor_id', row.user_id)
+        .eq('type', 'friend_request')
+    }
     if (accept && row) {
       notifyUsers({
         userIds: [row.user_id],

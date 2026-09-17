@@ -430,6 +430,95 @@
   margin-top: -4px;
 }
 
+.chat-mood-pill {
+  align-self: center;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-pill);
+  padding: 6px 14px;
+  margin-top: 4px;
+}
+
+.chat-bacheca-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 16px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.chat-bacheca-section:last-child {
+  border-bottom: none;
+}
+
+.chat-pin-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: var(--r-control);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+}
+
+.chat-pin-content {
+  font-size: 14px;
+  color: var(--ink);
+  font-style: italic;
+}
+
+.chat-pin-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+
+.chat-pin-remove {
+  border: none;
+  background: none;
+  color: var(--accent-text);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.chat-capsule-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--r-control);
+  background: var(--glass-bg);
+  border: 1px dashed var(--glass-border);
+}
+
+.chat-capsule-card.is-open {
+  border-style: solid;
+}
+
+.chat-capsule-content {
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.chat-capsule-meta {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+
+.chat-capsule-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .chat-proposal-card {
   display: flex;
   flex-direction: column;

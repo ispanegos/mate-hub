@@ -87,6 +87,12 @@ export default function HomePage() {
         .update({ status: accept ? 'accepted' : 'declined' })
         .eq('conversation_id', conversationId)
       if (error) throw error
+      await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('user_id', user.id)
+        .eq('conversation_id', conversationId)
+        .eq('type', 'conversation_invite')
       await refresh()
     } finally {
       setBusyId(null)
@@ -275,12 +281,7 @@ export default function HomePage() {
 
       {filter === 'friends' && (
         <section className="home-section">
-          <div className="home-section-head">
-            <h3 className="home-section-title">Amici</h3>
-            <Link to="/friends" className="home-manage-friends-link">
-              Cerca / richieste
-            </Link>
-          </div>
+          <h3 className="home-section-title">Amici</h3>
 
           {filteredFriends.length === 0 && (
             <EmptyState

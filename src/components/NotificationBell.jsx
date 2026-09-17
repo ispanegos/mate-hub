@@ -47,7 +47,7 @@ export default function NotificationBell() {
   }, [open])
 
   const handleItemClick = (n) => {
-    if (!n.read) markRead(n.id)
+    markRead(n.id)
     setOpen(false)
     if (n.link) navigate(n.link)
   }
@@ -87,7 +87,7 @@ export default function NotificationBell() {
                 <button
                   key={n.id}
                   type="button"
-                  className={`notification-item${n.read ? '' : ' is-unread'}`}
+                  className="notification-item is-unread"
                   onClick={() => handleItemClick(n)}
                 >
                   <span className="notification-item-icon">{TYPE_ICON[n.type] || '🔔'}</span>

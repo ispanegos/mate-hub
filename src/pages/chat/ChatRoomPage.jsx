@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useOutletContext, useParams } from 'react-router-dom'
 import { useAuth } from '../../context/useAuth'
 import { supabase } from '../../lib/supabase'
 import { useConversations, conversationTitle } from '../../hooks/useConversations'
@@ -13,6 +13,7 @@ import './ChatRoomPage.css'
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
 const LONG_PRESS_MS = 450
+const CAPSULE_MIN_DATE = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
 
 const MEMBER_COLORS = [
   '#E4572E',
@@ -144,6 +145,7 @@ export default function ChatRoomPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const isOnline = useOnlineStatus()
+  const { setHeaderTitle } = useOutletContext() || {}
 
   const [conversation, setConversation] = useState(null)
   const [myStatus, setMyStatus] = useState(null)
@@ -195,6 +197,12 @@ export default function ChatRoomPage() {
   const [showPollForm, setShowPollForm] = useState(false)
   const [pollQuestion, setPollQuestion] = useState('')
   const [pollOptionInputs, setPollOptionInputs] = useState(['', ''])
+  const [pins, setPins] = useState([])
+  const [capsules, setCapsules] = useState([])
+  const [showCapsuleForm, setShowCapsuleForm] = useState(false)
+  const [capsuleContent, setCapsuleContent] = useState('')
+  const [capsuleDate, setCapsuleDate] = useState('')
+  const [mood, setMood] = useState(null)
   const [chatSearchOpen, setChatSearchOpen] = useState(false)
   const [chatSearchQuery, setChatSearchQuery] = useState('')
   const [forwardSheetFor, setForwardSheetFor] = useState(null)
@@ -260,6 +268,12 @@ export default function ChatRoomPage() {
     if (conversation.type === 'direct') return otherProfile ? displayNameOf(otherProfile) : 'Chat'
     return conversation.name || 'Gruppo senza nome'
   }, [conversation, otherProfile])
+
+  useEffect(() => {
+    if (!setHeaderTitle) return
+    setHeaderTitle(conversation ? title : null)
+    return () => setHeaderTitle(null)
+  }, [setHeaderTitle, conversation, title])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset del picker quando cambia messaggio/si chiude
@@ -623,12 +637,12 @@ export default function ChatRoomPage() {
         conversationId: id,
       })
     }
-    if (regularRecipients.length > 0) {
+    if (regularRecipients.length > 0 && !isGroup) {
       notifyUsers({
         userIds: regularRecipients,
         actorId: user.id,
         type: 'message',
-        title: isGroup ? `${senderName} in ${conversation?.name}` : senderName,
+        title: senderName,
         body: value,
         link: `/chat/${id}`,
         conversationId: id,
@@ -663,15 +677,17 @@ export default function ChatRoomPage() {
       // (sotto) aggiunge questo stesso insert una volta arrivato l'evento,
       // stesso pattern del messaggio di testo
       const mediaLabel = type === 'image' ? 'una foto' : type === 'video' ? 'un video' : 'un audio'
-      notifyUsers({
-        userIds: otherMemberIds,
-        actorId: user.id,
-        type: 'media',
-        title: isGroup ? `${displayNameOf(membersById[user.id]?.profile)} in ${conversation?.name}` : displayNameOf(membersById[user.id]?.profile),
-        body: `Ha inviato ${mediaLabel}`,
-        link: `/chat/${id}`,
-        conversationId: id,
-      })
+      if (!isGroup) {
+        notifyUsers({
+          userIds: otherMemberIds,
+          actorId: user.id,
+          type: 'media',
+          title: displayNameOf(membersById[user.id]?.profile),
+          body: `Ha inviato ${mediaLabel}`,
+          link: `/chat/${id}`,
+          conversationId: id,
+        })
+      }
     } catch (err) {
       setError(err.message || 'Invio non riuscito')
     } finally {
@@ -1376,6 +1392,86 @@ export default function ChatRoomPage() {
     loadPolls()
   }
 
+  // --- bacheca: frasi pinnate e capsule del tempo ---
+  const loadBacheca = useCallback(async () => {
+    const { data: pinRows } = await supabase
+      .from('message_pins')
+      .select('*')
+      .eq('conversation_id', id)
+      .order('created_at', { ascending: false })
+    setPins(pinRows || [])
+
+    const { data: capsuleRows } = await supabase.rpc('get_time_capsules', { p_conversation_id: id })
+    setCapsules(capsuleRows || [])
+  }, [id])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch on mount/quando si diventa membro; serve anche fuori dalla tab per sapere cosa e' gia' pinnato nel menu azioni
+    if (isMember) loadBacheca()
+  }, [isMember, loadBacheca])
+
+  useEffect(() => {
+    if (!isMember) return
+    const channel = supabase
+      .channel(`chat-bacheca-${id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'message_pins', filter: `conversation_id=eq.${id}` }, () => loadBacheca())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'time_capsules', filter: `conversation_id=eq.${id}` }, () => loadBacheca())
+      .subscribe()
+    return () => supabase.removeChannel(channel)
+  }, [id, isMember, loadBacheca])
+
+  const togglePin = async (messageId) => {
+    const existing = pins.find((p) => p.message_id === messageId)
+    setActionMenuFor(null)
+    if (existing) {
+      if (existing.pinned_by !== user.id) return
+      await supabase.from('message_pins').delete().eq('id', existing.id)
+    } else {
+      await supabase.from('message_pins').insert({ conversation_id: id, message_id: messageId, pinned_by: user.id })
+    }
+    loadBacheca()
+  }
+
+  const unpin = async (pinId) => {
+    await supabase.from('message_pins').delete().eq('id', pinId)
+    loadBacheca()
+  }
+
+  const resetCapsuleForm = () => {
+    setCapsuleContent('')
+    setCapsuleDate('')
+    setShowCapsuleForm(false)
+  }
+
+  const createCapsule = async (event) => {
+    event.preventDefault()
+    const content = capsuleContent.trim()
+    if (!content || !capsuleDate) return
+    const opensAt = new Date(capsuleDate)
+    if (Number.isNaN(opensAt.getTime()) || opensAt <= new Date()) return
+
+    const { error: err } = await supabase
+      .from('time_capsules')
+      .insert({ conversation_id: id, created_by: user.id, content, opens_at: opensAt.toISOString() })
+    if (err) {
+      setError(err.message)
+      return
+    }
+    resetCapsuleForm()
+    loadBacheca()
+  }
+
+  // --- meteo del gruppo: indicatore scherzoso, solo per i gruppi ---
+  const loadMood = useCallback(async () => {
+    const { data } = await supabase.rpc('get_group_mood', { p_conversation_id: id })
+    setMood(data?.[0] || null)
+  }, [id])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- data fetch quando si apre il pannello info
+    if (showInfo && isMember && isGroup) loadMood()
+  }, [showInfo, isMember, isGroup, loadMood])
+
   const visibleMedia = activeFolderId
     ? allMedia.filter((m) => (mediaFolderMap[m.id] || []).includes(activeFolderId))
     : allMedia
@@ -1763,6 +1859,13 @@ export default function ChatRoomPage() {
             >
               Eventi
             </button>
+            <button
+              type="button"
+              className={`chat-tab${tab === 'bacheca' ? ' is-active' : ''}`}
+              onClick={() => setTab('bacheca')}
+            >
+              Bacheca
+            </button>
           </div>
         )}
       </header>
@@ -1824,6 +1927,12 @@ export default function ChatRoomPage() {
               <span className="chat-info-direct-name">{title}</span>
               {uploadingAvatar && <p className="profile-hint">Caricamento immagine…</p>}
             </div>
+
+            {isGroup && mood && (
+              <div className="chat-mood-pill">
+                {mood.mood_emoji} Umore del gruppo: {mood.mood_label}
+              </div>
+            )}
 
             {isGroup && (
               <div className="chat-proposal-section">
@@ -2245,6 +2354,15 @@ export default function ChatRoomPage() {
                 >
                   ➦ Inoltra
                 </button>
+                {(() => {
+                  const existingPin = pins.find((p) => p.message_id === actionMenuFor)
+                  if (existingPin && existingPin.pinned_by !== user.id) return null
+                  return (
+                    <button type="button" className="chat-action-item" onClick={() => togglePin(actionMenuFor)}>
+                      {existingPin ? '📌 Rimuovi dalla bacheca' : '📌 Pin nella bacheca'}
+                    </button>
+                  )
+                })()}
                 {messagesById[actionMenuFor]?.sender_id === user.id &&
                   messagesById[actionMenuFor]?.type === 'text' && (
                     <button type="button" className="chat-action-item" onClick={() => startEdit(actionMenuFor)}>
@@ -2921,6 +3039,93 @@ export default function ChatRoomPage() {
             })}
             {events.length === 0 && !showEventForm && (
               <p className="chat-empty-hint">Nessun evento ancora.</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {isMember && tab === 'bacheca' && (
+        <div className="chat-split">
+          <div className="chat-bacheca-section">
+            <p className="chat-info-members-title">📌 Frasi leggendarie</p>
+            {pins.length === 0 && (
+              <p className="chat-empty-hint">Nessuna frase pinnata ancora. Tienine d'occhio una buona in chat.</p>
+            )}
+            {pins.map((p) => {
+              const msg = messagesById[p.message_id]
+              const sender = membersById[msg?.sender_id]?.profile
+              return (
+                <div key={p.id} className="chat-pin-card">
+                  <p className="chat-pin-content">
+                    {msg ? (msg.type === 'text' ? msg.content : mediaLabel(msg.type)) : 'Messaggio non più disponibile'}
+                  </p>
+                  <div className="chat-pin-meta">
+                    <span>{sender ? displayNameOf(sender) : 'Qualcuno'}</span>
+                    {p.pinned_by === user.id && (
+                      <button type="button" className="chat-pin-remove" onClick={() => unpin(p.id)}>
+                        Rimuovi
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="chat-bacheca-section">
+            <p className="chat-info-members-title">⏳ Capsule del tempo</p>
+            <p className="chat-proposal-hint">
+              Scrivi un messaggio sigillato: nessuno può leggerlo, nemmeno tu, finché non arriva la data che scegli.
+            </p>
+            {capsules.length === 0 && !showCapsuleForm && <p className="chat-empty-hint">Nessuna capsula ancora.</p>}
+            {capsules.map((c) => (
+              <div key={c.id} className={`chat-capsule-card${c.is_open ? ' is-open' : ''}`}>
+                {c.is_open ? (
+                  <>
+                    <p className="chat-capsule-content">{c.content}</p>
+                    <span className="chat-capsule-meta">
+                      Aperta il {new Date(c.opens_at).toLocaleDateString('it-IT')}
+                    </span>
+                  </>
+                ) : (
+                  <span className="chat-capsule-meta">
+                    🔒 Sigillata, si apre il {new Date(c.opens_at).toLocaleDateString('it-IT')}
+                  </span>
+                )}
+              </div>
+            ))}
+
+            {!showCapsuleForm && (
+              <button type="button" className="btn btn-ghost" onClick={() => setShowCapsuleForm(true)}>
+                + Nuova capsula
+              </button>
+            )}
+
+            {showCapsuleForm && (
+              <form className="chat-capsule-form" onSubmit={createCapsule}>
+                <textarea
+                  className="input"
+                  rows={3}
+                  placeholder="Cosa vuoi dire al gruppo del futuro?"
+                  value={capsuleContent}
+                  onChange={(e) => setCapsuleContent(e.target.value)}
+                />
+                <input
+                  type="date"
+                  className="input"
+                  value={capsuleDate}
+                  min={CAPSULE_MIN_DATE}
+                  onChange={(e) => setCapsuleDate(e.target.value)}
+                />
+                <div className="chat-proposal-actions">
+                  <button type="submit" className="btn btn-primary" disabled={!capsuleContent.trim() || !capsuleDate}>
+                    Sigilla
+                  </button>
+                  <button type="button" className="btn btn-ghost" onClick={resetCapsuleForm}>
+                    Annulla
+                  </button>
+                </div>
+              </form>
             )}
           </div>
         </div>

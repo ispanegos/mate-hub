@@ -30,6 +30,7 @@ export default function AppShell() {
   const isHome = location.pathname === '/'
   const isOnline = useOnlineStatus()
   const [onboardingOpen, setOnboardingOpen] = useState(false)
+  const [headerTitle, setHeaderTitle] = useState(null)
 
   return (
     <div className="app-shell">
@@ -46,7 +47,7 @@ export default function AppShell() {
             </button>
           )}
           <NavLink to="/" className="app-header-title" end>
-            Mate HUB
+            {headerTitle || 'Mate HUB'}
           </NavLink>
         </div>
         <div className="app-header-actions">
@@ -61,7 +62,7 @@ export default function AppShell() {
       {!isOnline && <div className="app-offline-banner">Sei offline — alcune azioni non funzioneranno.</div>}
 
       <main className="app-content">
-        <Outlet context={{ reopenOnboarding: () => setOnboardingOpen(true) }} />
+        <Outlet context={{ reopenOnboarding: () => setOnboardingOpen(true), setHeaderTitle }} />
       </main>
 
       <OnboardingTour forceOpen={onboardingOpen} onClose={() => setOnboardingOpen(false)} />

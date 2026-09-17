@@ -16,6 +16,7 @@ export function useNotifications() {
       .from('notifications')
       .select('*')
       .eq('user_id', user.id)
+      .eq('read', false)
       .order('created_at', { ascending: false })
       .limit(PAGE_SIZE)
     if (!error) setItems(data || [])
@@ -34,12 +35,22 @@ export function useNotifications() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-        (payload) => setItems((prev) => [payload.new, ...prev].slice(0, PAGE_SIZE)),
+        (payload) => {
+          if (payload.new.read) return
+          setItems((prev) => [payload.new, ...prev].slice(0, PAGE_SIZE))
+        },
       )
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` },
-        (payload) => setItems((prev) => prev.map((n) => (n.id === payload.new.id ? payload.new : n))),
+        (payload) => {
+          // segnata come letta altrove (es. azione completata): sparisce anche da qui
+          setItems((prev) =>
+            payload.new.read
+              ? prev.filter((n) => n.id !== payload.new.id)
+              : prev.map((n) => (n.id === payload.new.id ? payload.new : n)),
+          )
+        },
       )
       .subscribe()
     return () => {
@@ -48,17 +59,15 @@ export function useNotifications() {
   }, [user])
 
   const markRead = useCallback(async (id) => {
-    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)))
+    setItems((prev) => prev.filter((n) => n.id !== id))
     await supabase.from('notifications').update({ read: true }).eq('id', id)
   }, [])
 
   const markAllRead = useCallback(async () => {
     if (!user) return
-    setItems((prev) => prev.map((n) => ({ ...n, read: true })))
+    setItems([])
     await supabase.from('notifications').update({ read: true }).eq('user_id', user.id).eq('read', false)
   }, [user])
 
-  const unreadCount = items.filter((n) => !n.read).length
-
-  return { items, loading, unreadCount, markRead, markAllRead, refresh: load }
+  return { items, loading, unreadCount: items.length, markRead, markAllRead, refresh: load }
 }
