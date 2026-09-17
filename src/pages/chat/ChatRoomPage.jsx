@@ -208,6 +208,16 @@ export default function ChatRoomPage() {
   const [allMedia, setAllMedia] = useState([])
   const [activeFolderId, setActiveFolderId] = useState(null)
   const [newFolderName, setNewFolderName] = useState('')
+  const [viewerMedia, setViewerMedia] = useState(null)
+
+  useEffect(() => {
+    if (!viewerMedia) return
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setViewerMedia(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [viewerMedia])
 
   const isMember = myStatus === 'accepted'
   const isGroup = conversation?.type === 'group'
@@ -845,6 +855,7 @@ export default function ChatRoomPage() {
       delete next[media.message_id]
       return next
     })
+    setViewerMedia((prev) => (prev?.id === media.id ? null : prev))
   }
 
   const visibleMedia = activeFolderId
@@ -967,6 +978,28 @@ export default function ChatRoomPage() {
       const next = new Set(prev)
       if (next.has(eventId)) next.delete(eventId)
       else next.add(eventId)
+      return next
+    })
+  }
+
+  const deleteEvent = async (eventId) => {
+    await supabase.from('event_participants').delete().eq('event_id', eventId)
+    const { error: err } = await supabase.from('events').delete().eq('id', eventId)
+    if (err) {
+      setError(err.message)
+      return
+    }
+    setEvents((prev) => prev.filter((e) => e.id !== eventId))
+    setEventParticipantsMap((prev) => {
+      if (!prev[eventId]) return prev
+      const next = { ...prev }
+      delete next[eventId]
+      return next
+    })
+    setExpandedEventIds((prev) => {
+      if (!prev.has(eventId)) return prev
+      const next = new Set(prev)
+      next.delete(eventId)
       return next
     })
   }
@@ -1635,7 +1668,15 @@ export default function ChatRoomPage() {
           <div className="chat-media-grid">
             {visibleMedia.map((m) => (
               <div key={m.id} className="chat-media-tile">
-                <MediaBubble media={m} />
+                <div
+                  className="chat-media-open"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setViewerMedia(m)}
+                  onKeyDown={(e) => e.key === 'Enter' && setViewerMedia(m)}
+                >
+                  <MediaBubble media={m} />
+                </div>
                 {!activeFolderId && folders.length > 0 && (
                   <select
                     className="chat-media-folder-select"
@@ -1676,6 +1717,25 @@ export default function ChatRoomPage() {
             ))}
             {visibleMedia.length === 0 && <p className="chat-empty-hint">Nessun media qui.</p>}
           </div>
+
+          {viewerMedia && (
+            <div
+              className="chat-media-viewer-overlay"
+              role="presentation"
+              onClick={() => setViewerMedia(null)}
+            >
+              <button
+                type="button"
+                className="chat-media-viewer-close"
+                onClick={() => setViewerMedia(null)}
+              >
+                ✕
+              </button>
+              <div className="chat-media-viewer-content" onClick={(e) => e.stopPropagation()}>
+                <MediaBubble media={viewerMedia} />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1998,6 +2058,17 @@ export default function ChatRoomPage() {
                           onClick={() => navigate(`/events/${ev.id}/rate`)}
                         >
                           ⭐ Valuta partecipanti
+                        </button>
+                      )}
+                      {ev.created_by === user.id && (
+                        <button
+                          type="button"
+                          className="event-card-delete"
+                          onClick={() => {
+                            if (window.confirm('Eliminare definitivamente questo evento?')) deleteEvent(ev.id)
+                          }}
+                        >
+                          🗑 Elimina evento
                         </button>
                       )}
                     </>
