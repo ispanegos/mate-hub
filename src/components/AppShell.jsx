@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
@@ -28,6 +29,7 @@ export default function AppShell() {
   const navigate = useNavigate()
   const isHome = location.pathname === '/'
   const isOnline = useOnlineStatus()
+  const [onboardingOpen, setOnboardingOpen] = useState(false)
 
   return (
     <div className="app-shell">
@@ -59,10 +61,10 @@ export default function AppShell() {
       {!isOnline && <div className="app-offline-banner">Sei offline — alcune azioni non funzioneranno.</div>}
 
       <main className="app-content">
-        <Outlet />
+        <Outlet context={{ reopenOnboarding: () => setOnboardingOpen(true) }} />
       </main>
 
-      <OnboardingTour />
+      <OnboardingTour forceOpen={onboardingOpen} onClose={() => setOnboardingOpen(false)} />
     </div>
   )
 }

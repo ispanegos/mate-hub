@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './OnboardingTour.css'
 
 const STORAGE_KEY = 'mate-hub-onboarded-v2'
@@ -58,15 +58,22 @@ function markOnboardingSeen() {
   }
 }
 
-export default function OnboardingTour() {
+export default function OnboardingTour({ forceOpen = false, onClose }) {
   const [dismissed, setDismissed] = useState(hasSeenOnboarding())
   const [step, setStep] = useState(0)
 
-  if (dismissed) return null
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset dello step quando viene riaperto da fuori
+    if (forceOpen) setStep(0)
+  }, [forceOpen])
+
+  const visible = forceOpen || !dismissed
+  if (!visible) return null
 
   const close = () => {
     markOnboardingSeen()
     setDismissed(true)
+    onClose?.()
   }
 
   const isLast = step === STEPS.length - 1

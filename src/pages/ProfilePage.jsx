@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { supabase } from '../lib/supabase'
 import StarsCard from '../components/StarsCard'
@@ -52,6 +52,7 @@ function CameraIcon() {
 export default function ProfilePage() {
   const { user, profile, signOut, updateProfile } = useAuth()
   const navigate = useNavigate()
+  const { reopenOnboarding } = useOutletContext() || {}
   const fileInputRef = useRef(null)
 
   const [firstName, setFirstName] = useState(profile?.first_name || '')
@@ -329,6 +330,15 @@ export default function ProfilePage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {reopenOnboarding && (
+          <div className="field">
+            <label>Aiuto</label>
+            <button type="button" className="btn btn-secondary btn-block" onClick={reopenOnboarding}>
+              Rivedi il tour di benvenuto
+            </button>
           </div>
         )}
 
