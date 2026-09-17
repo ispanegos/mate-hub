@@ -9,4 +9,8 @@ export const BADGE_DEFS = {
   paparazzo: { emoji: '📸', label: 'Il Paparazzo', description: 'Più foto/video caricati nel gruppo, ultimi 7 giorni.' },
   presente: { emoji: '🥇', label: 'Il Presente', description: 'Ha votato la pagella per più eventi del gruppo, ultimi 7 giorni.' },
   politico: { emoji: '🗳️', label: 'Il Politico', description: 'Più proposte e sondaggi creati nel gruppo, ultimi 7 giorni.' },
+  popolare: { emoji: '🔥', label: 'Il Popolare', description: 'I suoi messaggi ricevono più reazioni nel gruppo, ultimi 7 giorni.' },
+  vocale: { emoji: '🎙️', label: 'Il Vocale-dipendente', description: 'Più messaggi vocali mandati nel gruppo, ultimi 7 giorni.' },
+  spiantato: { emoji: '🪙', label: 'Lo Spiantato', description: 'Più quote di spesa ancora da pagare nel gruppo, in questo momento.' },
+  soprannominato: { emoji: '🏷️', label: 'Il Soprannominato', description: 'Ha ricevuto più nickname dagli amici, ultimi 7 giorni.' },
 }
