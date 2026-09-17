@@ -46,8 +46,18 @@
 
 .onboarding-dots {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 6px;
-  margin: 8px 0 4px;
+  margin: 8px 0 0;
+}
+
+.onboarding-step-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  opacity: 0.8;
+  margin-bottom: 4px;
 }
 
 .onboarding-dot {
@@ -72,4 +82,10 @@
 
 .onboarding-actions .btn {
   flex: 1;
+}
+
+.onboarding-back-btn {
+  flex: 0 0 auto !important;
+  width: 44px;
+  padding: 12px !important;
 }
