@@ -1,17 +1,45 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/useAuth'
 import { STAT_DEFS, buildStarsProfile, formatStatValue } from '../lib/stars'
 import { BADGE_DEFS } from '../lib/badges'
+import { badgeIdentity, loadSeenBadgeIds, saveSeenBadgeIds } from '../lib/badgeHistory'
 import { useUserBadges } from '../hooks/useUserBadges'
 import RadarChart from './RadarChart'
+import Confetti from './Confetti'
 import './StarsCard.css'
 import './RadarChart.css'
 
 export default function StarsCard({ userId }) {
+  const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState(null)
   const [showInfo, setShowInfo] = useState(false)
+  const [newBadges, setNewBadges] = useState([])
+  const [showConfetti, setShowConfetti] = useState(false)
   const badges = useUserBadges(userId)
+  const isOwn = user?.id === userId
+
+  useEffect(() => {
+    if (!isOwn || badges.length === 0) return
+    const ids = badges.map(badgeIdentity)
+    const seen = loadSeenBadgeIds(userId)
+    if (seen !== null) {
+      const fresh = badges.filter((b) => !seen.includes(badgeIdentity(b)))
+      if (fresh.length > 0) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- celebration triggered by real badge data changing, not a mount fetch
+        setNewBadges(fresh)
+        setShowConfetti(true)
+      }
+    }
+    saveSeenBadgeIds(userId, ids)
+  }, [badges, isOwn, userId])
+
+  useEffect(() => {
+    if (newBadges.length === 0) return
+    const t = setTimeout(() => setNewBadges([]), 4500)
+    return () => clearTimeout(t)
+  }, [newBadges])
 
   useEffect(() => {
     if (!userId) return
@@ -35,6 +63,18 @@ export default function StarsCard({ userId }) {
 
   return (
     <div className="stars-card glass">
+      <Confetti active={showConfetti} onDone={() => setShowConfetti(false)} />
+
+      {newBadges.length > 0 && (
+        <div className="stars-new-badge-toast">
+          🎉 Nuovo badge sbloccato:{' '}
+          {newBadges
+            .map((b) => `${BADGE_DEFS[b.badge_key]?.emoji || ''} ${BADGE_DEFS[b.badge_key]?.label || ''}`)
+            .join(', ')}
+          !
+        </div>
+      )}
+
       <p className="stars-card-title">Pagella</p>
 
       {badges.length > 0 && (

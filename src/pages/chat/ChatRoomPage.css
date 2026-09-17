@@ -615,6 +615,21 @@
   gap: 16px;
 }
 
+.chat-system-message {
+  align-self: center;
+  max-width: min(320px, 92%);
+  text-align: center;
+  white-space: pre-line;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-pill);
+  padding: 8px 14px;
+}
+
 .chat-empty-hint {
   text-align: center;
   color: var(--ink-soft);

@@ -2076,6 +2076,13 @@ export default function ChatRoomPage() {
 
           <div className="chat-messages" ref={scrollRef}>
             {visibleChatMessages.map((m) => {
+              if (m.type === 'system') {
+                return (
+                  <div key={m.id} className="chat-system-message">
+                    {m.content}
+                  </div>
+                )
+              }
               const mine = m.sender_id === user.id
               const media = mediaByMsg[m.id]
               const member = membersById[m.sender_id]
