@@ -261,9 +261,6 @@ export default function HomePage() {
                         <span className="conversation-row-name">
                           {conversationTitle(r.conversation, r.otherProfile)}
                         </span>
-                        <span className="conversation-row-hint">
-                          {r.conversation?.type === 'direct' ? 'Chat 1 a 1' : 'Gruppo'}
-                        </span>
                       </div>
                       {unread > 0 && <span className="conversation-row-unread">{unread > 9 ? '9+' : unread}</span>}
                     </button>
@@ -281,8 +278,6 @@ export default function HomePage() {
 
       {filter === 'friends' && (
         <section className="home-section">
-          <h3 className="home-section-title">Amici</h3>
-
           {filteredFriends.length === 0 && (
             <EmptyState
               title={q ? 'Nessun amico trovato' : 'Nessun amico ancora'}
